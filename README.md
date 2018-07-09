@@ -15,8 +15,7 @@ budgets:
 ##### ./secrets.json
 ``` json
 {
-  "ynab_access_token":
-    "token",
+  "ynab_access_token": "token",
   "influx_endpoint": "http://localhost:8086"
 }
 
