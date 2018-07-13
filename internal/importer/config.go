@@ -9,13 +9,36 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+var config Config
+var secrets Secrets
+
+func ReadConfig() error {
+	_, err := readConfig("./config.yml")
+	if err != nil {
+		return err
+	}
+
+	_, err = readSecrets("./secrets.json")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CurrentConfig() *Config {
+	return &config
+}
+
+func CurrentSecrets() *Secrets {
+	return &secrets
+}
+
 func readConfig(filename string) (*Config, error) {
 	raw, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	var config Config
 	err = yaml.Unmarshal(raw, &config)
 
 	return &config, err
@@ -27,7 +50,6 @@ func readSecrets(filename string) (*Secrets, error) {
 		return nil, err
 	}
 
-	var secrets Secrets
 	err = json.Unmarshal(raw, &secrets)
 
 	return &secrets, err

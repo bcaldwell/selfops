@@ -2,7 +2,6 @@ package importer
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"time"
 
@@ -20,8 +19,8 @@ const (
 
 func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, budget Budget, currencies []string) error {
 	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
-		Database:  "transactions",
-		Precision: "s",
+		Database:  config.TransactionsDatabase,
+		Precision: "h",
 	})
 	if err != nil {
 		return fmt.Errorf("Error creating InfluxDB point batch: %s", err.Error())
@@ -73,7 +72,7 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 			return fmt.Errorf("Unable to parse date: %s", err.Error())
 		}
 
-		pt, err := influx.NewPoint("transactions", tags, fields, t)
+		pt, err := influx.NewPoint(config.AccountsDatabase, tags, fields, t)
 		if err != nil {
 			return fmt.Errorf("Error adding new point: %s", err.Error())
 		}
@@ -89,8 +88,4 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 	fmt.Printf("Wrote %d transactions to influx from budget %s\n", len(transactions), budget.Name)
 
 	return nil
-}
-
-func Round(x, unit float64) float64 {
-	return math.Round(x/unit) * unit
 }

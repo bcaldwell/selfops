@@ -24,6 +24,12 @@
   version = "v1.6.0"
 
 [[projects]]
+  name = "github.com/robfig/cron"
+  packages = ["."]
+  revision = "b41be1df696709bb6395fe435af20370037c0b4c"
+  version = "v1.1"
+
+[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
@@ -32,6 +38,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ea29a7a8fd8ec80147f097cdc40f098fc2207f4cff1b5ed6c7341b9f3b6b789c"
+  inputs-digest = "86a52c74c953722cb3a54c76a5a2b99bc4df4e295efbc02a2593f53e9b50b898"
   solver-name = "gps-cdcl"
   solver-version = 1

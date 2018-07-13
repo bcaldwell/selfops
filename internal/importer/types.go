@@ -8,8 +8,12 @@ type Budget struct {
 }
 
 type Config struct {
-	Currencies []string `json:"currencies"`
-	Budgets    []Budget `json:"budgets"`
+	// YnabTable            string   `json:"ynabTable"`
+	TransactionsDatabase string   `json:"transactionsDatabase"`
+	AccountsDatabase     string   `json:"accountsDatabase"`
+	UpdateFrequency      string   `json:"updateFrequency"`
+	Currencies           []string `json:"currencies"`
+	Budgets              []Budget `json:"budgets"`
 }
 
 type Secrets struct {
