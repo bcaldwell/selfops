@@ -12,13 +12,13 @@ import (
 var config Config
 var secrets Secrets
 
-func ReadConfig() error {
-	_, err := readConfig("./config.yml")
+func ReadConfig(configFile, secretsFile string) error {
+	_, err := readConfig(configFile)
 	if err != nil {
 		return err
 	}
 
-	_, err = readSecrets("./secrets.json")
+	_, err = readSecrets(secretsFile)
 	if err != nil {
 		return err
 	}
