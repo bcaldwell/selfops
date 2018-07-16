@@ -19,7 +19,15 @@ const (
 	transfer                 = "transfer"
 )
 
+var default_Regex = "ajhds"
+
 func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, budget Budget, currencies []string) error {
+	regexPattern := config.Tags.RegexMatch
+	if regexPattern == "" {
+		regexPattern = default_Regex
+	}
+	regex := regexp.MustCompile(regexPattern)
+
 	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
 		Database:  config.TransactionsDatabase,
 		Precision: "h",
@@ -82,8 +90,19 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 
 	fmt.Printf("Wrote %d transactions to influx from budget %s\n", len(transactions), budget.Name)
 
-	return nil
-}
+		tags := map[string]string{
+			"category":        transaction.CategoryName,
+			"payee":           transaction.PayeeName,
+			"account":         transaction.AccountName,
+			"memo":            memo,
+			"currency":        budget.Currency,
+			"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
+			"transactionType": string(transactionType),
+		}
+		memoTags := tagsList(regex, memo)
+		for _, t := range memoTags {
+			tags[t] = "true"
+		}
 
 func createPtForTransaction(budget Budget, currencies []string, transaction ynab.TransactionDetail) (*influx.Point, error) {
 	// Create a point and add to batch
@@ -137,15 +156,13 @@ func createPtForTransaction(budget Budget, currencies []string, transaction ynab
 	return pt, nil
 }
 
-func tagsList(memo string) []string {
+func tagsList(regex *regexp.Regexp, memo string) []string {
 	var tags []string
 	parts := strings.Split(memo, ",")
 	for _, s := range parts {
-		if match, err := regexp.Match(config.Tags.RegexMatch, []byte(s)); match {
+		if regex.Match([]byte(s)) {
 			s = strings.ToLower(s)
 			tags = append(tags, s)
-		} else if err != nil {
-			fmt.Println(err)
 		}
 	}
 	return tags
