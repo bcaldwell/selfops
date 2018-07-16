@@ -42,7 +42,7 @@ func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget 
 			fields[currency] = Round(balance*budget.Conversions[currency], 0.01)
 		}
 
-		pt, err := influx.NewPoint(config.TransactionsDatabase, tags, fields)
+		pt, err := influx.NewPoint(config.AccountsDatabase, tags, fields)
 		if err != nil {
 			return fmt.Errorf("Error adding new point: %s", err.Error())
 		}

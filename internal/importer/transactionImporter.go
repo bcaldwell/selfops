@@ -19,7 +19,7 @@ const (
 	transfer                 = "transfer"
 )
 
-var default_Regex = "ajhds"
+var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 
 func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, budget Budget, currencies []string) error {
 	regexPattern := config.Tags.RegexMatch
@@ -32,6 +32,7 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 		Database:  config.TransactionsDatabase,
 		Precision: "h",
 	})
+
 	if err != nil {
 		return fmt.Errorf("Error creating InfluxDB point batch: %s", err.Error())
 	}
@@ -44,7 +45,7 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 
 	for _, transaction := range transactions {
 		if len(transaction.SubTransactions) == 0 {
-			pt, err := createPtForTransaction(budget, currencies, transaction)
+			pt, err := createPtForTransaction(regex, budget, currencies, transaction)
 			if err != nil {
 				return err
 			}
@@ -53,23 +54,31 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 			for _, t := range transaction.SubTransactions {
 				var category string
 				if t.CategoryId != nil {
-					fmt.Println("getting categories")
 					c, err := ynabClient.CategoriesService.Get(budget.ID, *t.CategoryId)
 					category = c.Name
 					if err != nil {
 						return fmt.Errorf("Unable to get category from id: %s", err.Error())
 					}
-				} else {
-					fmt.Printf("Transaction %s (%s:%s:%d:%s) has a subtransaction without a category\n", transaction.Id, transaction.PayeeName, transaction.CategoryName, transaction.Amount/1000.0, transaction.Date)
+				}
+				memo := transaction.Memo
+				if t.Memo != nil {
+					memo = t.Memo
+				}
+				payeeName := transaction.PayeeName
+				if t.PayeeId != nil {
+					p, err := ynabClient.PayeesService.Get(budget.ID, *t.PayeeId)
+					payeeName = p.Name
+					if err != nil {
+						return fmt.Errorf("Unable to get payee from id: %s", err.Error())
+					}
 				}
 
-				pt, err := createPtForTransaction(budget, currencies, ynab.TransactionDetail{
+				pt, err := createPtForTransaction(regex, budget, currencies, ynab.TransactionDetail{
 					CategoryName: category,
-					// idk about using child memo here....
-					PayeeName:   transaction.PayeeName,
-					AccountName: transaction.AccountName,
+					PayeeName:    payeeName,
+					AccountName:  transaction.AccountName,
 					TransactionSummary: ynab.TransactionSummary{
-						Memo:              transaction.Memo,
+						Memo:              memo,
 						Amount:            t.Amount,
 						TransferAccountId: transaction.TransferAccountId,
 						Date:              transaction.Date,
@@ -89,22 +98,10 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 	}
 
 	fmt.Printf("Wrote %d transactions to influx from budget %s\n", len(transactions), budget.Name)
+	return nil
+}
 
-		tags := map[string]string{
-			"category":        transaction.CategoryName,
-			"payee":           transaction.PayeeName,
-			"account":         transaction.AccountName,
-			"memo":            memo,
-			"currency":        budget.Currency,
-			"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
-			"transactionType": string(transactionType),
-		}
-		memoTags := tagsList(regex, memo)
-		for _, t := range memoTags {
-			tags[t] = "true"
-		}
-
-func createPtForTransaction(budget Budget, currencies []string, transaction ynab.TransactionDetail) (*influx.Point, error) {
+func createPtForTransaction(regex *regexp.Regexp, budget Budget, currencies []string, transaction ynab.TransactionDetail) (*influx.Point, error) {
 	// Create a point and add to batch
 	var memo string
 	if transaction.Memo != nil {
@@ -131,7 +128,7 @@ func createPtForTransaction(budget Budget, currencies []string, transaction ynab
 		"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
 		"transactionType": string(transactionType),
 	}
-	memoTags := tagsList(memo)
+	memoTags := tagsList(regex, memo)
 	for _, t := range memoTags {
 		tags[t] = "true"
 	}
@@ -149,7 +146,7 @@ func createPtForTransaction(budget Budget, currencies []string, transaction ynab
 		return nil, fmt.Errorf("Unable to parse date: %s", err.Error())
 	}
 
-	pt, err := influx.NewPoint(config.AccountsDatabase, tags, fields, t)
+	pt, err := influx.NewPoint(config.TransactionsDatabase, tags, fields, t)
 	if err != nil {
 		return nil, fmt.Errorf("Error adding new point: %s", err.Error())
 	}
