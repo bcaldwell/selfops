@@ -19,7 +19,15 @@ const (
 	transfer                 = "transfer"
 )
 
+var default_Regex = "ajhds"
+
 func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, budget Budget, currencies []string) error {
+	regexPattern := config.Tags.RegexMatch
+	if regexPattern == "" {
+		regexPattern = default_Regex
+	}
+	regex := regexp.MustCompile(regexPattern)
+
 	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
 		Database:  config.TransactionsDatabase,
 		Precision: "h",
@@ -61,7 +69,7 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 			"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
 			"transactionType": string(transactionType),
 		}
-		memoTags := tagsList(memo)
+		memoTags := tagsList(regex, memo)
 		for _, t := range memoTags {
 			tags[t] = "true"
 		}
@@ -97,15 +105,13 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 	return nil
 }
 
-func tagsList(memo string) []string {
+func tagsList(regex *regexp.Regexp, memo string) []string {
 	var tags []string
 	parts := strings.Split(memo, ",")
 	for _, s := range parts {
-		if match, err := regexp.Match(config.Tags.RegexMatch, []byte(s)); match {
+		if regex.Match([]byte(s)) {
 			s = strings.ToLower(s)
 			tags = append(tags, s)
-		} else if err != nil {
-			fmt.Println(err)
 		}
 	}
 	return tags
