@@ -35,56 +35,44 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 	}
 
 	for _, transaction := range transactions {
-		// Create a point and add to batch
-		var memo string
-		if transaction.Memo != nil {
-			memo = *transaction.Memo
-		}
+		if len(transaction.SubTransactions) == 0 {
+			pt, err := createPtForTransaction(budget, currencies, transaction)
+			if err != nil {
+				return err
+			}
+			bp.AddPoint(pt)
+		} else {
+			for _, t := range transaction.SubTransactions {
+				var category string
+				if t.CategoryId != nil {
+					fmt.Println("getting categories")
+					c, err := ynabClient.CategoriesService.Get(budget.ID, *t.CategoryId)
+					category = c.Name
+					if err != nil {
+						return fmt.Errorf("Unable to get category from id: %s", err.Error())
+					}
+				} else {
+					fmt.Printf("Transaction %s (%s:%s:%d:%s) has a subtransaction without a category\n", transaction.Id, transaction.PayeeName, transaction.CategoryName, transaction.Amount/1000.0, transaction.Date)
+				}
 
-		amount := float64(transaction.Amount) / 1000.0
-
-		transactionType := expense
-		if amount >= 0 {
-			transactionType = income
+				pt, err := createPtForTransaction(budget, currencies, ynab.TransactionDetail{
+					CategoryName: category,
+					// idk about using child memo here....
+					PayeeName:   transaction.PayeeName,
+					AccountName: transaction.AccountName,
+					TransactionSummary: ynab.TransactionSummary{
+						Memo:              transaction.Memo,
+						Amount:            t.Amount,
+						TransferAccountId: transaction.TransferAccountId,
+						Date:              transaction.Date,
+					},
+				})
+				if err != nil {
+					return err
+				}
+				bp.AddPoint(pt)
+			}
 		}
-		if transaction.TransferAccountId != nil {
-			// transfers might be only counted in one account
-			transactionType = transfer
-		}
-
-		tags := map[string]string{
-			"category":        transaction.CategoryName,
-			"payee":           transaction.PayeeName,
-			"account":         transaction.AccountName,
-			"memo":            memo,
-			"currency":        budget.Currency,
-			"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
-			"transactionType": string(transactionType),
-		}
-		memoTags := tagsList(memo)
-		for _, t := range memoTags {
-			tags[t] = "true"
-		}
-
-		fields := map[string]interface{}{
-			"amount": amount,
-		}
-
-		for _, currency := range currencies {
-			fields[currency] = Round(amount*budget.Conversions[currency], 0.01)
-		}
-
-		t, err := time.Parse("2006-01-02", transaction.Date)
-		if err != nil {
-			return fmt.Errorf("Unable to parse date: %s", err.Error())
-		}
-
-		pt, err := influx.NewPoint(config.AccountsDatabase, tags, fields, t)
-		if err != nil {
-			return fmt.Errorf("Error adding new point: %s", err.Error())
-		}
-
-		bp.AddPoint(pt)
 	}
 
 	err = influxClient.Write(bp)
@@ -95,6 +83,58 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 	fmt.Printf("Wrote %d transactions to influx from budget %s\n", len(transactions), budget.Name)
 
 	return nil
+}
+
+func createPtForTransaction(budget Budget, currencies []string, transaction ynab.TransactionDetail) (*influx.Point, error) {
+	// Create a point and add to batch
+	var memo string
+	if transaction.Memo != nil {
+		memo = *transaction.Memo
+	}
+
+	amount := float64(transaction.Amount) / 1000.0
+
+	transactionType := expense
+	if amount >= 0 {
+		transactionType = income
+	}
+	if transaction.TransferAccountId != nil {
+		// transfers might be only counted in one account
+		transactionType = transfer
+	}
+
+	tags := map[string]string{
+		"category":        transaction.CategoryName,
+		"payee":           transaction.PayeeName,
+		"account":         transaction.AccountName,
+		"memo":            memo,
+		"currency":        budget.Currency,
+		"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
+		"transactionType": string(transactionType),
+	}
+	memoTags := tagsList(memo)
+	for _, t := range memoTags {
+		tags[t] = "true"
+	}
+
+	fields := map[string]interface{}{
+		"amount": amount,
+	}
+
+	for _, currency := range currencies {
+		fields[currency] = Round(amount*budget.Conversions[currency], 0.01)
+	}
+
+	t, err := time.Parse("2006-01-02", transaction.Date)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to parse date: %s", err.Error())
+	}
+
+	pt, err := influx.NewPoint(config.AccountsDatabase, tags, fields, t)
+	if err != nil {
+		return nil, fmt.Errorf("Error adding new point: %s", err.Error())
+	}
+	return pt, nil
 }
 
 func tagsList(memo string) []string {
