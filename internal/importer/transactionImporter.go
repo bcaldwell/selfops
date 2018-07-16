@@ -2,7 +2,9 @@ package importer
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/davidsteinsland/ynab-go/ynab"
@@ -59,6 +61,11 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 			"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
 			"transactionType": string(transactionType),
 		}
+		memoTags := tagsList(memo)
+		for _, t := range memoTags {
+			tags[t] = "true"
+		}
+
 		fields := map[string]interface{}{
 			"amount": amount,
 		}
@@ -88,4 +95,18 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 	fmt.Printf("Wrote %d transactions to influx from budget %s\n", len(transactions), budget.Name)
 
 	return nil
+}
+
+func tagsList(memo string) []string {
+	var tags []string
+	parts := strings.Split(memo, ",")
+	for _, s := range parts {
+		if match, err := regexp.Match(config.Tags.RegexMatch, []byte(s)); match {
+			s = strings.ToLower(s)
+			tags = append(tags, s)
+		} else if err != nil {
+			fmt.Println(err)
+		}
+	}
+	return tags
 }

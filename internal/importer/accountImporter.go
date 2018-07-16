@@ -55,7 +55,7 @@ func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget 
 		return fmt.Errorf("Error writing to influx: %s", err.Error())
 	}
 
-	fmt.Printf("Wrote %d transactions to influx from budget %s\n", len(accounts), budget.Name)
+	fmt.Printf("Wrote %d accounts to influx from budget %s\n", len(accounts), budget.Name)
 
 	return nil
 }

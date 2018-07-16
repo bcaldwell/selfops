@@ -13,7 +13,7 @@ import (
 func main() {
 	singleRun := flag.Bool("single-run", false, "run importer once (disable cron)")
 	configFile := flag.String("config", "./config.yml", "configuration file")
-	secretsFile := flag.String("secrets", "./secrets.yml", "secrets file")
+	secretsFile := flag.String("secrets", "./secrets.json", "secrets file")
 	help := flag.Bool("help", false, "show command help")
 
 	flag.Parse()

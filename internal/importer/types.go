@@ -14,6 +14,10 @@ type Config struct {
 	UpdateFrequency      string   `json:"updateFrequency"`
 	Currencies           []string `json:"currencies"`
 	Budgets              []Budget `json:"budgets"`
+	Tags                 struct {
+		Enabled    bool
+		RegexMatch string
+	}
 }
 
 type Secrets struct {
