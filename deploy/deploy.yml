@@ -1,0 +1,16 @@
+deploy:
+  - deployments:
+    - influxdb
+    nodes:
+    - benjamin-compute-1
+  - deployments:
+    - ynab-influx-importer
+    - grafana
+    nodes:
+    - benjamin-compute-1
+
+network:
+  100: cluster
+
+expose:
+  grafana.benjamincaldwell.ca: 1000

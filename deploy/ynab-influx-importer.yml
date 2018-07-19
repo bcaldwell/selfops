@@ -1,0 +1,11 @@
+version: "3.5"
+services:
+  ynab-influx-importer:
+    image: benjamincaldwell/ynab-influx-importer:latest
+    container_name: ynab-influx-importer
+    volumes:
+      - ./config.yml:/ynab-influx-importer/config.yml
+      - ./secrets.json:/ynab-influx-importer/secrets.json
+    networks:
+      - influxdb
+    restart: always

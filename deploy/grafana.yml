@@ -1,0 +1,18 @@
+version: "3"
+services:
+  grafana:
+    image: grafana/grafana:5.2.1
+    container_name: grafana_2
+    ports:
+      - "4000:3000"
+    environment:
+      - NAME
+    volumes:
+      # Data persistency
+      # sudo mkdir -p /srv/docker/grafana/data
+      - ./grafana/data:/var/lib/grafana
+
+networks:
+  default:
+    external:
+      name: influxdb
