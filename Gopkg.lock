@@ -8,10 +8,25 @@
   revision = "abfe6d465a99bed5ad4063d3300a8061be05254d"
 
 [[projects]]
+  name = "github.com/fabioberger/airtable-go"
+  packages = [
+    ".",
+    "utils"
+  ]
+  revision = "3f8d9b3252f119b0012bc15a044dd92e3eafaa56"
+  version = "v3.1.0"
+
+[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
   version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   name = "github.com/influxdata/influxdb"
@@ -30,6 +45,39 @@
   version = "v1.1"
 
 [[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "context/ctxhttp"
+  ]
+  revision = "f4c29de78a2a91c00474a2e689954305c350adf9"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/oauth2"
+  packages = [
+    ".",
+    "fitbit",
+    "internal"
+  ]
+  revision = "3d292e4d0cdc3a0113e6d207bb137145ef1de42f"
+
+[[projects]]
+  name = "google.golang.org/appengine"
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
+  revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
+  version = "v1.1.0"
+
+[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
@@ -38,6 +86,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "86a52c74c953722cb3a54c76a5a2b99bc4df4e295efbc02a2593f53e9b50b898"
+  inputs-digest = "663d8dcdf97c87f0ae6dc4915a2887b3cab25054f86b26afd0ddd31bd991cd01"
   solver-name = "gps-cdcl"
   solver-version = 1

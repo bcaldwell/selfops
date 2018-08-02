@@ -1,4 +1,4 @@
-package importer
+package ynabImporter
 
 import (
 	"encoding/json"
@@ -9,6 +9,18 @@ import (
 )
 
 const CurrencyConversionEndpoint = "https://free.currencyconverterapi.com/api/v5/convert"
+
+type CurrencyConversionResponse struct {
+	Query struct {
+		Count int
+	}
+	Results map[string]struct {
+		Id  string
+		Val float64
+		To  string
+		Fr  string
+	}
+}
 
 func conversionRate(from, to string) (float64, error) {
 	conversionString := fmt.Sprintf("%s_%s", strings.ToUpper(from), strings.ToUpper(to))

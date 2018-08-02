@@ -1,4 +1,4 @@
-package importer
+package ynabImporter
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/davidsteinsland/ynab-go/ynab"
 	influx "github.com/influxdata/influxdb/client/v2"
 )
@@ -21,15 +22,15 @@ const (
 
 var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 
-func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, budget Budget, currencies []string) error {
-	regexPattern := config.Tags.RegexMatch
+func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, budget config.Budget, currencies []string) error {
+	regexPattern := config.CurrentConfig().Tags.RegexMatch
 	if regexPattern == "" {
 		regexPattern = default_Regex
 	}
 	regex := regexp.MustCompile(regexPattern)
 
 	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
-		Database:  config.TransactionsDatabase,
+		Database:  config.CurrentConfig().TransactionsDatabase,
 		Precision: "h",
 	})
 
@@ -101,7 +102,7 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 	return nil
 }
 
-func createPtForTransaction(regex *regexp.Regexp, budget Budget, currencies []string, transaction ynab.TransactionDetail) (*influx.Point, error) {
+func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currencies []string, transaction ynab.TransactionDetail) (*influx.Point, error) {
 	// Create a point and add to batch
 	var memo string
 	if transaction.Memo != nil {
@@ -146,7 +147,7 @@ func createPtForTransaction(regex *regexp.Regexp, budget Budget, currencies []st
 		return nil, fmt.Errorf("Unable to parse date: %s", err.Error())
 	}
 
-	pt, err := influx.NewPoint(config.TransactionsDatabase, tags, fields, t)
+	pt, err := influx.NewPoint(config.CurrentConfig().TransactionsDatabase, tags, fields, t)
 	if err != nil {
 		return nil, fmt.Errorf("Error adding new point: %s", err.Error())
 	}

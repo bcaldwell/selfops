@@ -11,6 +11,7 @@ services:
       # Data persistency
       # sudo mkdir -p /srv/docker/grafana/data
       - ./grafana/data:/var/lib/grafana
+    restart: always
 
 networks:
   default:

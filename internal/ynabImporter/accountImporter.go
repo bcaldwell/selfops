@@ -1,17 +1,18 @@
-package importer
+package ynabImporter
 
 import (
 	"fmt"
 	"math"
 	"strconv"
 
+	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/davidsteinsland/ynab-go/ynab"
 	influx "github.com/influxdata/influxdb/client/v2"
 )
 
-func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget Budget, currencies []string) error {
+func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget config.Budget, currencies []string) error {
 	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
-		Database:  config.AccountsDatabase,
+		Database:  config.CurrentConfig().AccountsDatabase,
 		Precision: "s",
 	})
 	if err != nil {
@@ -42,7 +43,7 @@ func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget 
 			fields[currency] = Round(balance*budget.Conversions[currency], 0.01)
 		}
 
-		pt, err := influx.NewPoint(config.AccountsDatabase, tags, fields)
+		pt, err := influx.NewPoint(config.CurrentConfig().AccountsDatabase, tags, fields)
 		if err != nil {
 			return fmt.Errorf("Error adding new point: %s", err.Error())
 		}

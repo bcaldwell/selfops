@@ -1,4 +1,4 @@
-# ynab-influx-importer
+# selfops
 
 ## Example configuration
 
