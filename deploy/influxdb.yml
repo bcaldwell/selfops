@@ -2,22 +2,18 @@ version: "3.5"
 services:
   influxdb:
     image: influxdb:1.6.0-alpine
-    container_name: influxdb
-    ports:
-      - "8086:8086"
     environment:
       - INFLUXDB_DATA_ENGINE=tsm1
       - INFLUXDB_REPORTING_DISABLED=false
     volumes:
-      # Data persistency
-      # sudo mkdir -p /srv/docker/influxdb/data
-      - ./influxdb/data:/var/lib/influxdb
+      - influxdb-data:/var/lib/influxdb
     networks:
       - influxdb
-    restart: always
 
 networks:
   influxdb:
-    # Use a custom driver
-    driver: bridge
+    driver: overlay
     name: influxdb
+
+volumes:
+  influxdb-data:

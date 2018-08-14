@@ -32,19 +32,23 @@ func CurrentSecrets() *Secrets {
 }
 
 func CurrentYnabConfig() *YnabConfig {
-	return &config.YnabConfig
+	return &config.Ynab
 }
 
-func CurrentYnabecrets() *YnabSecrets {
-	return &secrets.YnabSecrets
+func CurrentYnabSecrets() *YnabSecrets {
+	return &secrets.Ynab
 }
 
 func CurrentAirtableConfig() *AirtableConfig {
-	return &config.AirtableConfig
+	return &config.Airtable
 }
 
 func CurrentAirtableSecrets() *AirtableSecrets {
-	return &secrets.AirtableSecrets
+	return &secrets.Airtable
+}
+
+func CurrentInfluxSecrets() *InfluxSecrets {
+	return &secrets.Influx
 }
 
 func readConfig(filename string) (*Config, error) {

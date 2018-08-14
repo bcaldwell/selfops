@@ -19,6 +19,7 @@ type Runner interface {
 var runner Runner
 
 func main() {
+	var frequency string
 	singleRun := flag.Bool("single-run", false, "run importer once (disable cron)")
 	configFile := flag.String("config", "./config.yml", "configuration file")
 	secretsFile := flag.String("secrets", "./secrets.json", "secrets file")
@@ -47,8 +48,10 @@ func main() {
 	switch os.Args[1] {
 	case "ynab":
 		runner = ynabImporter.ImportYNABRunner{}
+		frequency = config.CurrentYnabConfig().UpdateFrequency
 	case "airtable":
 		runner = airtableImporter.ImportAirtableRunner{}
+		frequency = config.CurrentAirtableConfig().UpdateFrequency
 	default:
 		fmt.Println("No task passed in")
 		return
@@ -60,8 +63,12 @@ func main() {
 		return
 	}
 
+	if frequency == "" {
+		frequency = "@every 1h"
+	}
+
 	c := cron.New()
-	c.AddFunc(config.CurrentConfig().UpdateFrequency, run)
+	c.AddFunc(frequency, run)
 
 	c.Start()
 

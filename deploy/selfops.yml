@@ -1,25 +1,39 @@
 version: "3.5"
 services:
   ynabImporter:
-    image: benjamincaldwell/selfops:latest
-    container_name: ynabImporter
+    image: benjamincaldwell/selfops:${DOCKER_TAG-latest}
     command:
       - ynab
-    volumes:
-      - ./config.yml:/selfops/config.yml
-      - ./secrets.json:/selfops/secrets.json
-    restart: always
+    secrets:
+      - source: selfops-secret
+        target: /selfops/secrets.json
+    configs:
+      - source: selfops-config
+        target: /selfops/config.yml
+    networks:
+      - influxdb
+
   airtableImpoter:
-    image: benjamincaldwell/selfops:latest
-    container_name: airtableImpoter
+    image: benjamincaldwell/selfops:${DOCKER_TAG-latest}
     command:
       - airtable
-    volumes:
-      - ./config.yml:/selfops/config.yml
-      - ./secrets.json:/selfops/secrets.json
-    restart: always
+    secrets:
+      - source: selfops-secret
+        target: /selfops/secrets.json
+    configs:
+      - source: selfops-config
+        target: /selfops/config.yml
+    networks:
+      - influxdb
 
 networks:
-  default:
-    external:
-      name: influxdb
+  influxdb:
+    external: true
+
+secrets:
+  selfops-secret:
+    external: true
+
+configs:
+  selfops-config:
+    external: true

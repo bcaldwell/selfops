@@ -23,14 +23,14 @@ const (
 var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 
 func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, budget config.Budget, currencies []string) error {
-	regexPattern := config.CurrentConfig().Tags.RegexMatch
+	regexPattern := config.CurrentYnabConfig().Tags.RegexMatch
 	if regexPattern == "" {
 		regexPattern = default_Regex
 	}
 	regex := regexp.MustCompile(regexPattern)
 
 	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
-		Database:  config.CurrentConfig().TransactionsDatabase,
+		Database:  config.CurrentYnabConfig().YnabDatabase,
 		Precision: "h",
 	})
 
@@ -147,7 +147,7 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		return nil, fmt.Errorf("Unable to parse date: %s", err.Error())
 	}
 
-	pt, err := influx.NewPoint(config.CurrentConfig().TransactionsDatabase, tags, fields, t)
+	pt, err := influx.NewPoint(config.CurrentYnabConfig().TransactionsMeasurement, tags, fields, t)
 	if err != nil {
 		return nil, fmt.Errorf("Error adding new point: %s", err.Error())
 	}

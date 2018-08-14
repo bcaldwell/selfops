@@ -15,37 +15,33 @@ func (ImportYNABRunner) Run() error {
 }
 
 func ImportYNAB() error {
-	ynabClient := ynab.NewDefaultClient(config.CurrentSecrets().YnabAccessToken)
+	ynabClient := ynab.NewDefaultClient(config.CurrentYnabSecrets().YnabAccessToken)
 
-	influxClient, err := influxHelper.CreateInfluxClient(*config.CurrentSecrets())
+	influxClient, err := influxHelper.CreateInfluxClient()
 	if err != nil {
 		return fmt.Errorf("Error creating InfluxDB Client: %s", err.Error())
 	}
 
-	err = influxHelper.DropTable(influxClient, config.CurrentConfig().TransactionsDatabase)
+	err = influxHelper.DropMeasurement(influxClient, config.CurrentYnabConfig().YnabDatabase, config.CurrentYnabConfig().TransactionsMeasurement)
 	if err != nil {
-		return fmt.Errorf("Error dropping DB: %s", err.Error())
+		return fmt.Errorf("Error dropping measurement: %s", err.Error())
 	}
-	err = influxHelper.CreateTable(influxClient, config.CurrentConfig().TransactionsDatabase)
-	if err != nil {
-		return fmt.Errorf("Error creating DB: %s", err.Error())
-	}
-	err = influxHelper.CreateTable(influxClient, config.CurrentConfig().AccountsDatabase)
+	err = influxHelper.CreateDatabase(influxClient, config.CurrentYnabConfig().YnabDatabase)
 	if err != nil {
 		return fmt.Errorf("Error creating DB: %s", err.Error())
 	}
 
-	err = detectBudgetIDs(ynabClient, config.CurrentConfig())
+	err = detectBudgetIDs(ynabClient, config.CurrentYnabConfig())
 	if err != nil {
 		return fmt.Errorf("Error detecting budget IDs: %s", err)
 	}
 
-	for _, b := range config.CurrentConfig().Budgets {
-		err = importTransactions(ynabClient, influxClient, b, config.CurrentConfig().Currencies)
+	for _, b := range config.CurrentYnabConfig().Budgets {
+		err = importTransactions(ynabClient, influxClient, b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}
-		err = importAccounts(ynabClient, influxClient, b, config.CurrentConfig().Currencies)
+		err = importAccounts(ynabClient, influxClient, b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}
@@ -55,7 +51,7 @@ func ImportYNAB() error {
 }
 
 // todo: handle my error
-func detectBudgetIDs(ynabClient *ynab.Client, conf *config.Config) error {
+func detectBudgetIDs(ynabClient *ynab.Client, conf *config.YnabConfig) error {
 	budgets, err := ynabClient.BudgetService.List()
 	if err != nil {
 		return err
