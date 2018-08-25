@@ -5,8 +5,8 @@ services:
     environment:
       - INFLUXDB_DATA_ENGINE=tsm1
       - INFLUXDB_REPORTING_DISABLED=false
-    volumes:
-      - influxdb-data:/var/lib/influxdb
+    # volumes:
+    #   - influxdb-data:/var/lib/influxdb
     networks:
       - influxdb
 
@@ -15,5 +15,5 @@ networks:
     driver: overlay
     name: influxdb
 
-volumes:
-  influxdb-data:
+# volumes:
+#   influxdb-data:

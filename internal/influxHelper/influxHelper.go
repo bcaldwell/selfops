@@ -31,9 +31,9 @@ func DropDatabase(influxClient influxdb.Client, name string) error {
 func DropMeasurement(influxClient influxdb.Client, dbName string, name string) error {
 	name = strings.Split(name, " ")[0]
 
-	dropCommand := fmt.Sprintf("DROP MEASUREMENT %s FROM %s", name, dbName)
+	dropCommand := fmt.Sprintf("DROP MEASUREMENT \"%s\"", name)
 
-	q := influxdb.NewQuery(dropCommand, "", "")
+	q := influxdb.NewQuery(dropCommand, dbName, "")
 	if response, err := influxClient.Query(q); err == nil && response.Error() != nil {
 		return err
 	}
