@@ -13,6 +13,11 @@ import (
 )
 
 type TransactionType string
+type category struct {
+	Name  string
+	Group string
+	Id    string
+}
 
 const (
 	expense  TransactionType = "expense"
@@ -23,6 +28,28 @@ const (
 var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 
 func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, budget config.Budget, currencies []string) error {
+	categoryGroups, err := ynabClient.CategoriesService.List(budget.ID)
+	if err != nil {
+		return fmt.Errorf("Unable to get category from id: %s", err.Error())
+	}
+
+	categories := make(map[string]category)
+
+	for _, categoryGroup := range categoryGroups {
+		for _, c := range categoryGroup.Categories {
+			categories[c.Id] = category{
+				Id:    c.Id,
+				Name:  c.Name,
+				Group: categoryGroup.CategoryGroup.Name,
+			}
+		}
+	}
+
+	// map[tag]{
+	// 	category,
+	//  categoryGroup
+	// }
+
 	regexPattern := config.CurrentYnabConfig().Tags.RegexMatch
 	if regexPattern == "" {
 		regexPattern = default_Regex
@@ -46,20 +73,23 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 
 	for _, transaction := range transactions {
 		if len(transaction.SubTransactions) == 0 {
-			pt, err := createPtForTransaction(regex, budget, currencies, transaction)
+			pt, err := createPtForTransaction(regex, budget, currencies, categories, transaction)
 			if err != nil {
 				return err
 			}
 			bp.AddPoint(pt)
 		} else {
 			for _, t := range transaction.SubTransactions {
-				var category string
+				// todo: fix fallback here
+				var transactionCategory string
+				var transactionCategoryId *string
+
 				if t.CategoryId != nil {
-					c, err := ynabClient.CategoriesService.Get(budget.ID, *t.CategoryId)
-					category = c.Name
-					if err != nil {
-						return fmt.Errorf("Unable to get category from id: %s", err.Error())
-					}
+					transactionCategory = categories[*t.CategoryId].Name
+					transactionCategoryId = t.CategoryId
+				} else {
+					transactionCategory = categories[*transaction.CategoryId].Name
+					transactionCategoryId = transaction.CategoryId
 				}
 				memo := transaction.Memo
 				if t.Memo != nil {
@@ -74,8 +104,8 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 					}
 				}
 
-				pt, err := createPtForTransaction(regex, budget, currencies, ynab.TransactionDetail{
-					CategoryName: category,
+				pt, err := createPtForTransaction(regex, budget, currencies, categories, ynab.TransactionDetail{
+					CategoryName: transactionCategory,
 					PayeeName:    payeeName,
 					AccountName:  transaction.AccountName,
 					TransactionSummary: ynab.TransactionSummary{
@@ -83,6 +113,7 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 						Amount:            t.Amount,
 						TransferAccountId: transaction.TransferAccountId,
 						Date:              transaction.Date,
+						CategoryId:        transactionCategoryId,
 					},
 				})
 				if err != nil {
@@ -102,7 +133,7 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, bud
 	return nil
 }
 
-func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currencies []string, transaction ynab.TransactionDetail) (*influx.Point, error) {
+func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currencies []string, categories map[string]category, transaction ynab.TransactionDetail) (*influx.Point, error) {
 	// Create a point and add to batch
 	var memo string
 	if transaction.Memo != nil {
@@ -120,8 +151,14 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		transactionType = transfer
 	}
 
+	var categoryGroup string
+	if transaction.CategoryId != nil {
+		categoryGroup = categories[*transaction.CategoryId].Group
+	}
+
 	tags := map[string]string{
 		"category":        transaction.CategoryName,
+		"categoryGroup":   categoryGroup,
 		"payee":           transaction.PayeeName,
 		"account":         transaction.AccountName,
 		"memo":            memo,

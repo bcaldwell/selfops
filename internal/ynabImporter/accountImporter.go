@@ -13,7 +13,7 @@ import (
 func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget config.Budget, currencies []string) error {
 	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
 		Database:  config.CurrentYnabConfig().YnabDatabase,
-		Precision: "s",
+		Precision: "h",
 	})
 	if err != nil {
 		return fmt.Errorf("Error creating InfluxDB point batch: %s", err.Error())
