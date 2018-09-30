@@ -3,89 +3,80 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:4cbf38d5b93ec2a6005553d507f7b13e5328edea1a25c1d12f0de65cd723475a"
   name = "github.com/davidsteinsland/ynab-go"
   packages = ["ynab"]
+  pruneopts = "UT"
   revision = "abfe6d465a99bed5ad4063d3300a8061be05254d"
 
 [[projects]]
+  digest = "1:f84cc3a91a7f61be010001b4ab7325f8d03243b10e125cc1c6ff452103b84f87"
   name = "github.com/fabioberger/airtable-go"
   packages = [
     ".",
-    "utils"
+    "utils",
   ]
+  pruneopts = "UT"
   revision = "3f8d9b3252f119b0012bc15a044dd92e3eafaa56"
   version = "v3.1.0"
 
 [[projects]]
+  digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
   name = "github.com/ghodss/yaml"
   packages = ["."]
+  pruneopts = "UT"
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
   version = "v1.0.0"
 
 [[projects]]
-  name = "github.com/golang/protobuf"
-  packages = ["proto"]
-  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
-  version = "v1.1.0"
-
-[[projects]]
+  digest = "1:18f8bac7ae238f1d06b347d40fea2a37d029e11ddeac57163182a08c780955f2"
   name = "github.com/influxdata/influxdb"
   packages = [
     "client/v2",
     "models",
-    "pkg/escape"
+    "pkg/escape",
   ]
+  pruneopts = "UT"
   revision = "5766854b95ae86cccf6cc8ffe4c5bb9eacc994b8"
   version = "v1.6.1"
 
 [[projects]]
+  digest = "1:8ef506fc2bb9ced9b151dafa592d4046063d744c646c1bbe801982ce87e4bc24"
+  name = "github.com/lib/pq"
+  packages = [
+    ".",
+    "oid",
+  ]
+  pruneopts = "UT"
+  revision = "4ded0e9383f75c197b3a2aaa6d590ac52df6fd79"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:ed615c5430ecabbb0fb7629a182da65ecee6523900ac1ac932520860878ffcad"
   name = "github.com/robfig/cron"
   packages = ["."]
+  pruneopts = "UT"
   revision = "b41be1df696709bb6395fe435af20370037c0b4c"
   version = "v1.1"
 
 [[projects]]
-  branch = "master"
-  name = "golang.org/x/net"
-  packages = [
-    "context",
-    "context/ctxhttp"
-  ]
-  revision = "c39426892332e1bb5ec0a434a079bf82f5d30c54"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/oauth2"
-  packages = [
-    ".",
-    "fitbit",
-    "internal"
-  ]
-  revision = "3d292e4d0cdc3a0113e6d207bb137145ef1de42f"
-
-[[projects]]
-  name = "google.golang.org/appengine"
-  packages = [
-    "internal",
-    "internal/base",
-    "internal/datastore",
-    "internal/log",
-    "internal/remote_api",
-    "internal/urlfetch",
-    "urlfetch"
-  ]
-  revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
-  version = "v1.1.0"
-
-[[projects]]
+  digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
+  pruneopts = "UT"
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
   version = "v2.2.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "34337dd29b530a8bd33c065758fbf8e69394f29dc6968f2a6d7d034775eb47f4"
+  input-imports = [
+    "github.com/davidsteinsland/ynab-go/ynab",
+    "github.com/fabioberger/airtable-go",
+    "github.com/ghodss/yaml",
+    "github.com/influxdata/influxdb/client/v2",
+    "github.com/lib/pq",
+    "github.com/robfig/cron",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
