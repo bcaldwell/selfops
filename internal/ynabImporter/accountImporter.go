@@ -12,7 +12,7 @@ import (
 
 func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget config.Budget, currencies []string) error {
 	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
-		Database:  config.CurrentYnabConfig().YnabDatabase,
+		Database:  config.CurrentYnabConfig().Influx.YnabDatabase,
 		Precision: "h",
 	})
 	if err != nil {
@@ -43,7 +43,7 @@ func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget 
 			fields[currency] = Round(balance*budget.Conversions[currency], 0.01)
 		}
 
-		pt, err := influx.NewPoint(config.CurrentYnabConfig().AccountsMeasurement, tags, fields)
+		pt, err := influx.NewPoint(config.CurrentYnabConfig().Influx.AccountsMeasurement, tags, fields)
 		if err != nil {
 			return fmt.Errorf("Error adding new point: %s", err.Error())
 		}

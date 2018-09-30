@@ -9,6 +9,7 @@ type Secrets struct {
 	Ynab     YnabSecrets
 	Airtable AirtableSecrets
 	Influx   InfluxSecrets
+	Sql      SqlSecrets
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -16,13 +17,22 @@ type Secrets struct {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 type YnabConfig struct {
-	YnabDatabase            string   `json:"ynabDatabase"`
-	TransactionsMeasurement string   `json:"transactionsMeasurement"`
-	AccountsMeasurement     string   `json:"accountsMeasurement"`
-	UpdateFrequency         string   `json:"updateFrequency"`
-	Currencies              []string `json:"currencies"`
-	Budgets                 []Budget `json:"budgets"`
-	Tags                    struct {
+	UpdateFrequency string
+	Currencies      []string
+	Budgets         []Budget
+	Influx          struct {
+		Enabled                 bool
+		YnabDatabase            string
+		TransactionsMeasurement string
+		AccountsMeasurement     string
+	}
+	Sql struct {
+		Enabled           bool
+		YnabDatabase      string
+		TransactionsTable string
+		AccountsTable     string
+	}
+	Tags struct {
 		Enabled    bool
 		RegexMatch string
 	}
@@ -33,9 +43,15 @@ type YnabSecrets struct {
 }
 
 type InfluxSecrets struct {
-	InfluxEndpoint string `json:"influxEndpoint"`
-	InfluxUser     string `json:"influxUser"`
-	InfluxPassword string `json:"influxPassword"`
+	InfluxEndpoint string
+	InfluxUsername string
+	InfluxPassword string
+}
+
+type SqlSecrets struct {
+	SqlHost     string
+	SqlUsername string
+	SqlPassword string
 }
 
 type Budget struct {

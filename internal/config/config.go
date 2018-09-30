@@ -51,6 +51,10 @@ func CurrentInfluxSecrets() *InfluxSecrets {
 	return &secrets.Influx
 }
 
+func CurrentSqlSecrets() *SqlSecrets {
+	return &secrets.Sql
+}
+
 func readConfig(filename string) (*Config, error) {
 	raw, err := ioutil.ReadFile(filename)
 	if err != nil {

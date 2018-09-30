@@ -11,7 +11,7 @@ import (
 func CreateInfluxClient() (influxdb.Client, error) {
 	return influxdb.NewHTTPClient(influxdb.HTTPConfig{
 		Addr:     config.CurrentInfluxSecrets().InfluxEndpoint,
-		Username: config.CurrentInfluxSecrets().InfluxUser,
+		Username: config.CurrentInfluxSecrets().InfluxUsername,
 		Password: config.CurrentInfluxSecrets().InfluxPassword,
 	})
 }

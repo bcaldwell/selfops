@@ -5,6 +5,7 @@ import (
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/influxHelper"
+	"github.com/bcaldwell/selfops/internal/postgresHelper"
 	"github.com/davidsteinsland/ynab-go/ynab"
 )
 
@@ -22,13 +23,30 @@ func ImportYNAB() error {
 		return fmt.Errorf("Error creating InfluxDB Client: %s", err.Error())
 	}
 
-	err = influxHelper.DropMeasurement(influxClient, config.CurrentYnabConfig().YnabDatabase, config.CurrentYnabConfig().TransactionsMeasurement)
+	err = influxHelper.DropMeasurement(influxClient, config.CurrentYnabConfig().Influx.YnabDatabase, config.CurrentYnabConfig().Influx.TransactionsMeasurement)
 	if err != nil {
 		return fmt.Errorf("Error dropping measurement: %s", err.Error())
 	}
-	err = influxHelper.CreateDatabase(influxClient, config.CurrentYnabConfig().YnabDatabase)
+	err = influxHelper.CreateDatabase(influxClient, config.CurrentYnabConfig().Influx.YnabDatabase)
 	if err != nil {
 		return fmt.Errorf("Error creating DB: %s", err.Error())
+	}
+
+	// db, err := gorm.Open("postgres", "host=localhost port=5432 user=postgres dbname=ynab password=password sslmode=disable")
+	db, err := postgresHelper.CreatePostgresClient()
+	if err != nil {
+		return fmt.Errorf("Error connecting to postgres DB: %s", err)
+	}
+	defer db.Close()
+
+	err = postgresHelper.DropTable(db, config.CurrentYnabConfig().Sql.TransactionsTable)
+	if err != nil {
+		return fmt.Errorf("Error dropping table: %s", err)
+	}
+
+	err = postgresHelper.CreateTable(db, config.CurrentYnabConfig().Sql.TransactionsTable, createTransactionsSqlSchema())
+	if err != nil {
+		return fmt.Errorf("Error creating table: %s", err)
 	}
 
 	err = detectBudgetIDs(ynabClient, config.CurrentYnabConfig())
@@ -37,7 +55,7 @@ func ImportYNAB() error {
 	}
 
 	for _, b := range config.CurrentYnabConfig().Budgets {
-		err = importTransactions(ynabClient, influxClient, b, config.CurrentYnabConfig().Currencies)
+		err = importTransactions(ynabClient, influxClient, db, b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}
