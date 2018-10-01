@@ -12,6 +12,7 @@ services:
         target: /selfops/config.yml
     networks:
       - influxdb
+      - postgres
 
   airtableImpoter:
     image: benjamincaldwell/selfops:${DOCKER_TAG-latest}
@@ -28,6 +29,8 @@ services:
 
 networks:
   influxdb:
+    external: true
+  postgres:
     external: true
 
 secrets:
