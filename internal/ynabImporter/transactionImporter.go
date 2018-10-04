@@ -32,6 +32,7 @@ var baseTransactionsSqlSchema = map[string]string{
 	"amount":          "float8",
 	"transactionType": "varchar",
 	"tags":            "varchar[]",
+	"updatedAt":       "timestamp",
 }
 
 const (
@@ -207,6 +208,7 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		sqlInsert["tags"] = ""
 	}
 	sqlInsert["transactionDate"] = transaction.Date
+	sqlInsert["updatedAt"] = time.Now().Format(time.UnixDate)
 
 	fields := map[string]interface{}{
 		"amount": amount,
