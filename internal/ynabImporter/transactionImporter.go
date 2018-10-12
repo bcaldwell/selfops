@@ -202,7 +202,7 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 	}
 
 	sqlInsert := tags
-	if len(tags) == 0 {
+	if len(memoTags) != 0 {
 		sqlInsert["tags"] = fmt.Sprintf("{\"%s\"}", strings.Join(memoTags, "\",\""))
 	} else {
 		sqlInsert["tags"] = ""
@@ -237,7 +237,7 @@ func tagsList(regex *regexp.Regexp, memo string) []string {
 	parts := strings.Split(memo, ",")
 	for _, s := range parts {
 		if regex.Match([]byte(s)) {
-			s = strings.ToLower(s)
+			// s = strings.ToLower(s)
 			tags = append(tags, s)
 		}
 	}
