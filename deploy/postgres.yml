@@ -20,8 +20,9 @@ services:
 
 networks:
   postgres:
-    driver: overlay
-    name: postgres
+    external: true
+    # driver: overlay
+    # name: postgres
 
 volumes:
   postgres-data:

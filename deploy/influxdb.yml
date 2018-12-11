@@ -16,8 +16,9 @@ services:
 
 networks:
   influxdb:
-    driver: overlay
-    name: influxdb
+    external: true
+    # driver: overlay
+    # name: influxdb
 
 volumes:
   influxdb-data:

@@ -7,7 +7,7 @@ import (
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/influxHelper"
-	"github.com/fabioberger/airtable-go"
+	"github.com/crufter/airtable-go"
 
 	influx "github.com/influxdata/influxdb/client/v2"
 )
@@ -19,8 +19,8 @@ func (ImportAirtableRunner) Run() error {
 }
 
 type AirtableRecords struct {
-	AirtableID string
-	Fields     map[string]interface{}
+	ID     string
+	Fields map[string]interface{}
 }
 
 func ImportAirtable() error {

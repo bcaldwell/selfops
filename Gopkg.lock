@@ -2,23 +2,22 @@
 
 
 [[projects]]
+  digest = "1:1617d6cd37e956e0eed8ea9f7b9f3a6d16dbeacc5763a4dece73437ace089570"
+  name = "github.com/crufter/airtable-go"
+  packages = [
+    ".",
+    "utils",
+  ]
+  pruneopts = "UT"
+  revision = "c897a4d2452e598b60e690cbfa989beef91183aa"
+
+[[projects]]
   branch = "master"
   digest = "1:4cbf38d5b93ec2a6005553d507f7b13e5328edea1a25c1d12f0de65cd723475a"
   name = "github.com/davidsteinsland/ynab-go"
   packages = ["ynab"]
   pruneopts = "UT"
   revision = "abfe6d465a99bed5ad4063d3300a8061be05254d"
-
-[[projects]]
-  digest = "1:f84cc3a91a7f61be010001b4ab7325f8d03243b10e125cc1c6ff452103b84f87"
-  name = "github.com/fabioberger/airtable-go"
-  packages = [
-    ".",
-    "utils",
-  ]
-  pruneopts = "UT"
-  revision = "3f8d9b3252f119b0012bc15a044dd92e3eafaa56"
-  version = "v3.1.0"
 
 [[projects]]
   digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
@@ -29,7 +28,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:18f8bac7ae238f1d06b347d40fea2a37d029e11ddeac57163182a08c780955f2"
+  digest = "1:718c57979a9197414a044fff2028e57cb9fe145069e4f507059755bfe87f1bfe"
   name = "github.com/influxdata/influxdb"
   packages = [
     "client/v2",
@@ -37,8 +36,19 @@
     "pkg/escape",
   ]
   pruneopts = "UT"
-  revision = "5766854b95ae86cccf6cc8ffe4c5bb9eacc994b8"
-  version = "v1.6.1"
+  revision = "cb03c542a4054f0f4d3dc13919d31c456bdb5c39"
+  version = "v1.7.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:937258f1293bc9295b4789b0abea5b4ec030e3caecb65a4e1dc0b6999957a5ed"
+  name = "github.com/influxdata/platform"
+  packages = [
+    "models",
+    "pkg/escape",
+  ]
+  pruneopts = "UT"
+  revision = "551a2fc3ab65290708a95724a0547e29f8a3e8d6"
 
 [[projects]]
   digest = "1:8ef506fc2bb9ced9b151dafa592d4046063d744c646c1bbe801982ce87e4bc24"
@@ -60,19 +70,19 @@
   version = "v1.1"
 
 [[projects]]
-  digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
+  digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
-  version = "v2.2.1"
+  revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
+  version = "v2.2.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/crufter/airtable-go",
     "github.com/davidsteinsland/ynab-go/ynab",
-    "github.com/fabioberger/airtable-go",
     "github.com/ghodss/yaml",
     "github.com/influxdata/influxdb/client/v2",
     "github.com/lib/pq",
