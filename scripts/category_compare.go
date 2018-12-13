@@ -46,7 +46,7 @@ func main() {
 			}
 			for _, category := range catGroup.Categories {
 				if !category.Hidden {
-					budgetCategories = append(budgetCategories, category.Name)
+					budgetCategories = append(budgetCategories, fmt.Sprintf("%s::%s", catGroup.Name, category.Name))
 				}
 			}
 		}
@@ -62,7 +62,7 @@ func main() {
 			if name == name2 {
 				continue
 			}
-			PrettyPrint(name+"-"+name2, difference(budgetCategories, budgetCategories2))
+			PrettyPrint("In "+name+", Not in "+name2, difference(budgetCategories, budgetCategories2))
 		}
 
 	}
