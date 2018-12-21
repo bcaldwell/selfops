@@ -90,7 +90,10 @@ func ImportAirtable() error {
 							fmt.Printf("Error parsing date: %s\n", field)
 							continue
 						}
-						offset := record.Fields["Timezone Offset"].(float64)
+						offset := 0.0
+						if record.Fields["Timezone Offset"] != nil {
+							offset = record.Fields["Timezone Offset"].(float64)
+						}
 						duration := valueDate.Sub(date)
 						fields[key] = duration.Minutes() + (offset * 60)
 					} else {
