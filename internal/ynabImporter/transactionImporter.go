@@ -236,8 +236,9 @@ func tagsList(regex *regexp.Regexp, memo string) []string {
 	var tags []string
 	parts := strings.Split(memo, ",")
 	for _, s := range parts {
+		// remove spaces and conver to lowercase
+		s = strings.ToLower(strings.TrimSpace(s))
 		if regex.Match([]byte(s)) {
-			// s = strings.ToLower(s)
 			tags = append(tags, s)
 		}
 	}
