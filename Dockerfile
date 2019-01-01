@@ -1,7 +1,7 @@
 FROM golang:1.11 AS builder
 
 # Copy the code from the host and compile it
-ENV GO111MODULE=on
+# ENV GO111MODULE=on
 WORKDIR $GOPATH/src/github.com/bcaldwell/selfops
 # COPY go.* ./
 # RUN go mod download
