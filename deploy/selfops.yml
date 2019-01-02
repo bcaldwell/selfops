@@ -8,7 +8,7 @@ services:
       - source: selfops-secret
         target: /selfops/secrets.json
     configs:
-      - source: selfops-config
+      - source: selfops-config-09f319c8c391e07c51eda7561e0ce2adaa6b2823
         target: /selfops/config.yml
     networks:
       - influxdb
@@ -22,7 +22,7 @@ services:
       - source: selfops-secret
         target: /selfops/secrets.json
     configs:
-      - source: selfops-config
+      - source: selfops-config-09f319c8c391e07c51eda7561e0ce2adaa6b2823
         target: /selfops/config.yml
     networks:
       - influxdb
@@ -38,5 +38,5 @@ secrets:
     external: true
 
 configs:
-  selfops-config:
+  selfops-config-09f319c8c391e07c51eda7561e0ce2adaa6b2823:
     external: true
