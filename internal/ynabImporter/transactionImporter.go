@@ -33,6 +33,7 @@ var baseTransactionsSqlSchema = map[string]string{
 	"transactionType": "varchar",
 	"tags":            "varchar[]",
 	"updatedAt":       "timestamp",
+	"essential":       "boolean",
 }
 
 const (
@@ -185,6 +186,9 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		categoryGroup = categories[*transaction.CategoryId].Group
 	}
 
+	essentialSpending := stringInSlice(transaction.CategoryName, budget.EssentialCategories) ||
+		stringInSlice(categoryGroup, budget.EssentialCategoryGroup)
+
 	tags := map[string]string{
 		"category":        transaction.CategoryName,
 		"categoryGroup":   categoryGroup,
@@ -194,6 +198,7 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		"currency":        budget.Currency,
 		"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
 		"transactionType": string(transactionType),
+		"essential":       strconv.FormatBool(essentialSpending),
 	}
 
 	memoTags := tagsList(regex, memo)
@@ -251,4 +256,13 @@ func createTransactionsSqlSchema() map[string]string {
 		schema[currency] = "float8"
 	}
 	return schema
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }

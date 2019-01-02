@@ -55,10 +55,12 @@ type SqlSecrets struct {
 }
 
 type Budget struct {
-	Name        string             `json:"name"`
-	ID          string             `json:"id"`
-	Currency    string             `json:"currency"`
-	Conversions CurrencyConversion `json:"conversions"`
+	Name                   string             `json:"name"`
+	ID                     string             `json:"id"`
+	Currency               string             `json:"currency"`
+	Conversions            CurrencyConversion `json:"conversions"`
+	EssentialCategories    []string
+	EssentialCategoryGroup []string
 }
 
 type CurrencyConversion map[string]float64
