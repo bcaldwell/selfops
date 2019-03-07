@@ -32,6 +32,7 @@ func conversionRate(from, to string) (float64, error) {
 
 	q := req.URL.Query()
 	q.Add("q", conversionString)
+	q.Add("apiKey", "b5028db4bc95612e24be")
 	req.URL.RawQuery = q.Encode()
 
 	rs, err := http.DefaultClient.Do(req)
