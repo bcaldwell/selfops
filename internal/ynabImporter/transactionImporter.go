@@ -22,17 +22,18 @@ type category struct {
 }
 
 var baseTransactionsSqlSchema = map[string]string{
-	"transactionDate": "timestamp",
-	"category":        "varchar",
-	"categoryGroup":   "varchar",
-	"payee":           "varchar",
-	"account":         "varchar",
-	"memo":            "text",
-	"currency":        "varchar",
-	"amount":          "float8",
-	"transactionType": "varchar",
-	"tags":            "varchar[]",
-	"updatedAt":       "timestamp",
+	"transactionDate":  "timestamp",
+	"transactionMonth": "timestamp",
+	"category":         "varchar",
+	"categoryGroup":    "varchar",
+	"payee":            "varchar",
+	"account":          "varchar",
+	"memo":             "text",
+	"currency":         "varchar",
+	"amount":           "float8",
+	"transactionType":  "varchar",
+	"tags":             "varchar[]",
+	"updatedAt":        "timestamp",
 }
 
 const (
@@ -185,15 +186,23 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		categoryGroup = categories[*transaction.CategoryId].Group
 	}
 
+	t, err := time.Parse("2006-01-02", transaction.Date)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Unable to parse date: %s", err.Error())
+	}
+
+	transactionMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+
 	tags := map[string]string{
-		"category":        transaction.CategoryName,
-		"categoryGroup":   categoryGroup,
-		"payee":           transaction.PayeeName,
-		"account":         transaction.AccountName,
-		"memo":            memo,
-		"currency":        budget.Currency,
-		"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
-		"transactionType": string(transactionType),
+		"category":         transaction.CategoryName,
+		"categoryGroup":    categoryGroup,
+		"payee":            transaction.PayeeName,
+		"account":          transaction.AccountName,
+		"memo":             memo,
+		"currency":         budget.Currency,
+		"amount":           strconv.FormatFloat(amount, 'f', 2, 64),
+		"transactionType":  string(transactionType),
+		"transactionMonth": transactionMonth.Format("2006-01-02"),
 	}
 
 	for _, field := range budget.CalculatedFields {
@@ -211,6 +220,7 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 	} else {
 		sqlInsert["tags"] = ""
 	}
+
 	sqlInsert["transactionDate"] = transaction.Date
 	sqlInsert["updatedAt"] = time.Now().Format(time.UnixDate)
 
@@ -222,11 +232,6 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		value := Round(amount*budget.Conversions[currency], 0.01)
 		fields[currency] = value
 		sqlInsert[currency] = strconv.FormatFloat(value, 'f', 2, 64)
-	}
-
-	t, err := time.Parse("2006-01-02", transaction.Date)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Unable to parse date: %s", err.Error())
 	}
 
 	pt, err := influx.NewPoint(config.CurrentYnabConfig().Influx.TransactionsMeasurement, tags, fields, t)
