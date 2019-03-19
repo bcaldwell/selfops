@@ -44,7 +44,7 @@ func ImportYNAB() error {
 		return fmt.Errorf("Error dropping table: %s", err)
 	}
 
-	err = postgresHelper.CreateTable(db, config.CurrentYnabConfig().Sql.TransactionsTable, createTransactionsSqlSchema())
+	err = postgresHelper.CreateTable(db, config.CurrentYnabConfig().Sql.TransactionsTable, createTransactionsSQLSchema())
 	if err != nil {
 		return fmt.Errorf("Error creating table: %s", err)
 	}

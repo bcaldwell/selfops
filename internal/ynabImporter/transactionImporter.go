@@ -33,7 +33,6 @@ var baseTransactionsSqlSchema = map[string]string{
 	"transactionType": "varchar",
 	"tags":            "varchar[]",
 	"updatedAt":       "timestamp",
-	"essential":       "boolean",
 }
 
 const (
@@ -186,9 +185,6 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		categoryGroup = categories[*transaction.CategoryId].Group
 	}
 
-	essentialSpending := stringInSlice(transaction.CategoryName, budget.EssentialCategories) ||
-		stringInSlice(categoryGroup, budget.EssentialCategoryGroup)
-
 	tags := map[string]string{
 		"category":        transaction.CategoryName,
 		"categoryGroup":   categoryGroup,
@@ -198,7 +194,10 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		"currency":        budget.Currency,
 		"amount":          strconv.FormatFloat(amount, 'f', 2, 64),
 		"transactionType": string(transactionType),
-		"essential":       strconv.FormatBool(essentialSpending),
+	}
+
+	for _, field := range budget.CalculatedFields {
+		tags[field.Name] = strconv.FormatBool(calculateField(field, transaction, categoryGroup))
 	}
 
 	memoTags := tagsList(regex, memo)
@@ -237,6 +236,12 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 	return pt, sqlInsert, nil
 }
 
+func calculateField(field config.CalculatedField, transaction ynab.TransactionDetail, categoryGroup string) bool {
+	return stringInSlice(transaction.CategoryName, field.Category) ||
+		stringInSlice(categoryGroup, field.CategoryGroup) ||
+		stringInSlice(transaction.PayeeName, field.Payee)
+}
+
 func tagsList(regex *regexp.Regexp, memo string) []string {
 	var tags []string
 	parts := strings.Split(memo, ",")
@@ -250,8 +255,16 @@ func tagsList(regex *regexp.Regexp, memo string) []string {
 	return tags
 }
 
-func createTransactionsSqlSchema() map[string]string {
+func createTransactionsSQLSchema() map[string]string {
 	schema := baseTransactionsSqlSchema
+
+	for _, budget := range config.CurrentYnabConfig().Budgets {
+		for _, field := range budget.CalculatedFields {
+			if _, ok := schema[field.Name]; !ok {
+				schema[field.Name] = "boolean"
+			}
+		}
+	}
 	for _, currency := range config.CurrentYnabConfig().Currencies {
 		schema[currency] = "float8"
 	}
