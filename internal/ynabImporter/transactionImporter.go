@@ -191,7 +191,7 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		return nil, nil, fmt.Errorf("Unable to parse date: %s", err.Error())
 	}
 
-	transactionMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+	transactionMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.Location.UTC)
 
 	tags := map[string]string{
 		"category":         transaction.CategoryName,
