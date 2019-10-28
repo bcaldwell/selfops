@@ -1,4 +1,4 @@
-FROM golang:1.11 AS builder
+FROM golang:1.13 AS builder
 
 # Copy the code from the host and compile it
 # ENV GO111MODULE=on
