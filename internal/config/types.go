@@ -20,17 +20,13 @@ type YnabConfig struct {
 	UpdateFrequency string
 	Currencies      []string
 	Budgets         []Budget
-	Influx          struct {
-		Enabled                 bool
-		YnabDatabase            string
-		TransactionsMeasurement string
-		AccountsMeasurement     string
-	}
-	Sql struct {
+	SQL             struct {
 		Enabled           bool
 		YnabDatabase      string
 		TransactionsTable string
 		AccountsTable     string
+		BudgetsTable      string
+		NetworthTable     string
 	}
 	Tags struct {
 		Enabled    bool

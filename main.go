@@ -8,12 +8,13 @@ import (
 
 	"github.com/bcaldwell/selfops/internal/airtableImporter"
 	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/ynabImporter"
+	"github.com/bcaldwell/selfops/internal/ynabimporter"
 	"github.com/robfig/cron"
 )
 
 type Runner interface {
 	Run() error
+	Close() error
 }
 
 var runner Runner
@@ -21,6 +22,7 @@ var runner Runner
 func main() {
 	var frequency string
 	singleRun := flag.Bool("single-run", false, "run importer once (disable cron)")
+	once := flag.Bool("once", false, "run importer once (disable cron)")
 	configFile := flag.String("config", "./config.yml", "configuration file")
 	secretsFile := flag.String("secrets", "./secrets.json", "secrets file")
 	help := flag.Bool("help", false, "show command help")
@@ -44,10 +46,15 @@ func main() {
 		fmt.Println("No task passed in")
 		return
 	}
+	taskIndex := len(os.Args) - 1
 
-	switch os.Args[1] {
+	switch os.Args[taskIndex] {
 	case "ynab":
-		runner = ynabImporter.ImportYNABRunner{}
+		runner, err = ynabimporter.NewImportYNABRunner()
+		if err != nil {
+			fmt.Printf("Failed to create ynab importer: %s\n", err)
+			return
+		}
 		frequency = config.CurrentYnabConfig().UpdateFrequency
 	case "airtable":
 		runner = airtableImporter.ImportAirtableRunner{}
@@ -57,9 +64,10 @@ func main() {
 		return
 	}
 
-	run()
+	defer runner.Close()
 
-	if *singleRun {
+	run()
+	if *singleRun || *once {
 		return
 	}
 

@@ -5,7 +5,7 @@ services:
     deploy:
       placement:
         constraints:
-          - node.hostname == swarm-2
+          - node.hostname == swarm-3
     environment:
       - POSTGRES_USER=selfops
       - POSTGRES_DB=ynab

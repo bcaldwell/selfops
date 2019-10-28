@@ -1,7 +1,6 @@
-package ynabImporter
+package ynabimporter
 
 import (
-	"database/sql"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -11,7 +10,6 @@ import (
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresHelper"
 	"github.com/davidsteinsland/ynab-go/ynab"
-	influx "github.com/influxdata/influxdb/client/v2"
 )
 
 type TransactionType string
@@ -46,31 +44,9 @@ var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 
 // http://www.postgresqltutorial.com/postgresql-array/
 
-func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, sqlClient *sql.DB, budget config.Budget, currencies []string) error {
+func (importer *ImportYNABRunner) importTransactions(budget config.Budget, currencies []string) error {
 
 	sqlRecords := make([]map[string]string, 0)
-
-	categoryGroups, err := ynabClient.CategoriesService.List(budget.ID)
-	if err != nil {
-		return fmt.Errorf("Unable to get category from id: %s", err.Error())
-	}
-
-	categories := make(map[string]category)
-
-	for _, categoryGroup := range categoryGroups {
-		for _, c := range categoryGroup.Categories {
-			categories[c.Id] = category{
-				Id:    c.Id,
-				Name:  c.Name,
-				Group: categoryGroup.CategoryGroup.Name,
-			}
-		}
-	}
-
-	// map[tag]{
-	// 	category,
-	//  categoryGroup
-	// }
 
 	regexPattern := config.CurrentYnabConfig().Tags.RegexMatch
 	if regexPattern == "" {
@@ -78,41 +54,30 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, sql
 	}
 	regex := regexp.MustCompile(regexPattern)
 
-	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
-		Database:  config.CurrentYnabConfig().Influx.YnabDatabase,
-		Precision: "h",
-	})
-
-	if err != nil {
-		return fmt.Errorf("Error creating InfluxDB point batch: %s", err.Error())
-	}
-
-	transactions, err := ynabClient.TransactionsService.List(budget.ID)
+	transactions, err := importer.ynabClient.TransactionsService.List(budget.ID)
 	if err != nil {
 		return fmt.Errorf("Error getting transactions: %s", err.Error())
-
 	}
 
 	for _, transaction := range transactions {
 		if len(transaction.SubTransactions) == 0 {
-			pt, sqlInsert, err := createPtForTransaction(regex, budget, currencies, categories, transaction)
+			sqlRow, err := importer.createSqlForTransaction(regex, budget, currencies, transaction)
 			if err != nil {
 				return err
 			}
-			sqlRecords = append(sqlRecords, sqlInsert)
-			bp.AddPoint(pt)
+			sqlRecords = append(sqlRecords, sqlRow)
 		} else {
 			for _, t := range transaction.SubTransactions {
 				// todo: fix fallback here
 				var transactionCategory string
-				var transactionCategoryId *string
+				var transactionCategoryID *string
 
 				if t.CategoryId != nil {
-					transactionCategory = categories[*t.CategoryId].Name
-					transactionCategoryId = t.CategoryId
+					transactionCategory = importer.categories[budget.Name][*t.CategoryId].Name
+					transactionCategoryID = t.CategoryId
 				} else {
-					transactionCategory = categories[*transaction.CategoryId].Name
-					transactionCategoryId = transaction.CategoryId
+					transactionCategory = importer.categories[budget.Name][*transaction.CategoryId].Name
+					transactionCategoryID = transaction.CategoryId
 				}
 				memo := transaction.Memo
 				if t.Memo != nil {
@@ -120,14 +85,14 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, sql
 				}
 				payeeName := transaction.PayeeName
 				if t.PayeeId != nil {
-					p, err := ynabClient.PayeesService.Get(budget.ID, *t.PayeeId)
+					p, err := importer.ynabClient.PayeesService.Get(budget.ID, *t.PayeeId)
 					payeeName = p.Name
 					if err != nil {
 						return fmt.Errorf("Unable to get payee from id: %s", err.Error())
 					}
 				}
 
-				pt, sqlInsert, err := createPtForTransaction(regex, budget, currencies, categories, ynab.TransactionDetail{
+				sqlRow, err := importer.createSqlForTransaction(regex, budget, currencies, ynab.TransactionDetail{
 					CategoryName: transactionCategory,
 					PayeeName:    payeeName,
 					AccountName:  transaction.AccountName,
@@ -136,24 +101,18 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, sql
 						Amount:            t.Amount,
 						TransferAccountId: transaction.TransferAccountId,
 						Date:              transaction.Date,
-						CategoryId:        transactionCategoryId,
+						CategoryId:        transactionCategoryID,
 					},
 				})
 				if err != nil {
 					return err
 				}
-				sqlRecords = append(sqlRecords, sqlInsert)
-				bp.AddPoint(pt)
+				sqlRecords = append(sqlRecords, sqlRow)
 			}
 		}
 	}
 
-	err = influxClient.Write(bp)
-	if err != nil {
-		return fmt.Errorf("Error writing to influx: %s", err.Error())
-	}
-
-	err = postgresHelper.InsertRecords(sqlClient, "transactions", sqlRecords)
+	err = postgresHelper.InsertRecords(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable, sqlRecords)
 	if err != nil {
 		return fmt.Errorf("Error writing to sql: %s", err.Error())
 	}
@@ -163,8 +122,9 @@ func importTransactions(ynabClient *ynab.Client, influxClient influx.Client, sql
 	return nil
 }
 
-func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currencies []string, categories map[string]category, transaction ynab.TransactionDetail) (*influx.Point, map[string]string, error) {
-	// Create a point and add to batch
+func (importer *ImportYNABRunner) createSqlForTransaction(regex *regexp.Regexp, budget config.Budget, currencies []string, transaction ynab.TransactionDetail) (map[string]string, error) {
+	importer.recreateTransactionTable()
+
 	var memo string
 	if transaction.Memo != nil {
 		memo = *transaction.Memo
@@ -183,12 +143,12 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 
 	var categoryGroup string
 	if transaction.CategoryId != nil {
-		categoryGroup = categories[*transaction.CategoryId].Group
+		categoryGroup = importer.categories[budget.Name][*transaction.CategoryId].Group
 	}
 
 	t, err := time.Parse("2006-01-02", transaction.Date)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Unable to parse date: %s", err.Error())
+		return nil, fmt.Errorf("Unable to parse date: %s", err.Error())
 	}
 
 	transactionMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
@@ -215,15 +175,15 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 		tags[t] = "true"
 	}
 
-	sqlInsert := tags
+	sqlRow := tags
 	if len(memoTags) != 0 {
-		sqlInsert["tags"] = fmt.Sprintf("{\"%s\"}", strings.Join(memoTags, "\",\""))
+		sqlRow["tags"] = fmt.Sprintf("{\"%s\"}", strings.Join(memoTags, "\",\""))
 	} else {
-		sqlInsert["tags"] = ""
+		sqlRow["tags"] = ""
 	}
 
-	sqlInsert["transactionDate"] = transaction.Date
-	sqlInsert["updatedAt"] = time.Now().Format(time.UnixDate)
+	sqlRow["transactionDate"] = transaction.Date
+	sqlRow["updatedAt"] = time.Now().Format(time.UnixDate)
 
 	fields := map[string]interface{}{
 		"amount": amount,
@@ -232,14 +192,13 @@ func createPtForTransaction(regex *regexp.Regexp, budget config.Budget, currenci
 	for _, currency := range currencies {
 		value := Round(amount*budget.Conversions[currency], 0.01)
 		fields[currency] = value
-		sqlInsert[currency] = strconv.FormatFloat(value, 'f', 2, 64)
+		sqlRow[currency] = strconv.FormatFloat(value, 'f', 2, 64)
 	}
 
-	pt, err := influx.NewPoint(config.CurrentYnabConfig().Influx.TransactionsMeasurement, tags, fields, t)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error adding new point: %s", err.Error())
+		return nil, fmt.Errorf("Error adding new point: %s", err.Error())
 	}
-	return pt, sqlInsert, nil
+	return sqlRow, nil
 }
 
 func calculateField(field config.CalculatedField, transaction ynab.TransactionDetail, categoryGroup string) bool {
@@ -261,7 +220,20 @@ func tagsList(regex *regexp.Regexp, memo string) []string {
 	return tags
 }
 
-func createTransactionsSQLSchema() map[string]string {
+func (importer *ImportYNABRunner) recreateTransactionTable() error {
+	err := postgresHelper.DropTable(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable)
+	if err != nil {
+		return fmt.Errorf("Error dropping table: %s", err)
+	}
+
+	err = postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable, importer.createTransactionsSQLSchema())
+	if err != nil {
+		return fmt.Errorf("Error creating table: %s", err)
+	}
+	return nil
+}
+
+func (importer *ImportYNABRunner) createTransactionsSQLSchema() map[string]string {
 	schema := baseTransactionsSqlSchema
 
 	for _, budget := range config.CurrentYnabConfig().Budgets {

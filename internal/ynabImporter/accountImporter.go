@@ -1,64 +1,99 @@
-package ynabImporter
+package ynabimporter
 
 import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/davidsteinsland/ynab-go/ynab"
-	influx "github.com/influxdata/influxdb/client/v2"
+	"github.com/bcaldwell/selfops/internal/postgresHelper"
 )
 
-func importAccounts(ynabClient *ynab.Client, influxClient influx.Client, budget config.Budget, currencies []string) error {
-	bp, err := influx.NewBatchPoints(influx.BatchPointsConfig{
-		Database:  config.CurrentYnabConfig().Influx.YnabDatabase,
-		Precision: "h",
-	})
-	if err != nil {
-		return fmt.Errorf("Error creating InfluxDB point batch: %s", err.Error())
+var baseAccountsSqlSchema = map[string]string{
+	"name":       "varchar",
+	"currency":   "varchar",
+	"budgetName": "varchar",
+	"onBudget":   "boolean",
+	"type":       "varchar",
+	"balance":    "varchar",
+	"date":       "timestamp",
+}
+
+func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencies []string) error {
+	err := importer.createAccountsTable()
+	// if err != nil {
+	// 	return err
+	// }
+
+	sqlRecords := make([]map[string]string, 0)
+
+	currencyNetworths := make(map[string]float64)
+	for _, currency := range currencies {
+		currencyNetworths[currency] = 0
 	}
 
-	accounts, err := ynabClient.AccountsService.List(budget.ID)
-	if err != nil {
-		return fmt.Errorf("Error getting accounts: %s", err.Error())
+	accounts := importer.budgets[budget.ID].Accounts
 
+	date := time.Now().Format("01-02-2006")
+
+	err = importer.deleteRowsByDate(config.CurrentYnabConfig().SQL.AccountsTable, date, map[string]string{"budgetName": budget.Name})
+
+	if err != nil {
+		return fmt.Errorf("Error getting deleting old account records for %s: %s", date, err.Error())
 	}
 
 	for _, account := range accounts {
+		if account.Closed {
+			continue
+		}
+
 		balance := float64(account.Balance) / 1000.0
 
-		tags := map[string]string{
-			"balance":  strconv.FormatFloat(balance, 'f', 2, 64),
-			"name":     account.Name,
-			"type":     account.Type,
-			"onBudget": strconv.FormatBool(account.OnBudget),
-			"currency": budget.Currency,
-		}
-		fields := map[string]interface{}{
-			"balance": balance,
+		row := map[string]string{
+			"balance":    strconv.FormatFloat(balance, 'f', 2, 64),
+			"name":       account.Name,
+			"type":       account.Type,
+			"onBudget":   strconv.FormatBool(account.OnBudget),
+			"currency":   budget.Currency,
+			"budgetName": budget.Name,
+			"date":       date,
 		}
 
 		for _, currency := range currencies {
-			fields[currency] = Round(balance*budget.Conversions[currency], 0.01)
+			currencyBalance := Round(balance*budget.Conversions[currency], 0.01)
+			row[currency] = strconv.FormatFloat(currencyBalance, 'f', 2, 64)
+			currencyNetworths[currency] += currencyBalance
 		}
 
-		pt, err := influx.NewPoint(config.CurrentYnabConfig().Influx.AccountsMeasurement, tags, fields)
-		if err != nil {
-			return fmt.Errorf("Error adding new point: %s", err.Error())
-		}
-
-		bp.AddPoint(pt)
+		sqlRecords = append(sqlRecords, row)
 	}
 
-	err = influxClient.Write(bp)
+	err = postgresHelper.InsertRecords(importer.db, config.CurrentYnabConfig().SQL.AccountsTable, sqlRecords)
 	if err != nil {
-		return fmt.Errorf("Error writing to influx: %s", err.Error())
+		return fmt.Errorf("Error writing accounts to sql: %s", err.Error())
 	}
 
 	fmt.Printf("Wrote %d accounts to influx from budget %s\n", len(accounts), budget.Name)
 
 	return nil
+}
+
+func (importer *ImportYNABRunner) createAccountsTable() error {
+	err := postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.AccountsTable, importer.createAccountsSQLSchema())
+	if err != nil {
+		return fmt.Errorf("Error creating table: %s", err)
+	}
+	return nil
+}
+
+func (importer *ImportYNABRunner) createAccountsSQLSchema() map[string]string {
+	schema := baseAccountsSqlSchema
+
+	for _, currency := range config.CurrentYnabConfig().Currencies {
+		schema[currency] = "float8"
+	}
+	return schema
 }
 
 func Round(x, unit float64) float64 {

@@ -18,6 +18,10 @@ func (ImportAirtableRunner) Run() error {
 	return ImportAirtable()
 }
 
+func (ImportAirtableRunner) Close() error {
+	return nil
+}
+
 type AirtableRecords struct {
 	ID     string
 	Fields map[string]interface{}

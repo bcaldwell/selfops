@@ -10,9 +10,36 @@ import (
 )
 
 func CreatePostgresClient() (*sql.DB, error) {
+	databaselessConnStr := fmt.Sprintf("host=%s user=%s password=%s sslmode=disable",
+		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword)
+	db, err := sql.Open("postgres", databaselessConnStr)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create db for databaseless connection: %s", err)
+	}
+	rows, err := db.Query(fmt.Sprintf("SELECT datname FROM pg_database where datname = '%s'", config.CurrentYnabConfig().SQL.YnabDatabase))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get list of databases: %s", err)
+	}
+	defer rows.Close()
+
+	// next meaning there is a row, all we care about is if there is a row
+	if !rows.Next() {
+		fmt.Printf("Creating database %s in postgres database\n", config.CurrentYnabConfig().SQL.YnabDatabase)
+		_, err := db.Exec("CREATE DATABASE " + config.CurrentYnabConfig().SQL.YnabDatabase)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, config.CurrentYnabConfig().Sql.YnabDatabase)
-	return sql.Open("postgres", connStr)
+		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, config.CurrentYnabConfig().SQL.YnabDatabase)
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		return db, err
+	}
+	err = db.Ping()
+	return db, err
 }
 
 func CreateTable(db *sql.DB, tableName string, parameters map[string]string) error {
@@ -31,15 +58,18 @@ CREATE TABLE "public"."%s" (
 	PRIMARY KEY ("id")
 );
 	`, tableName, tableName, tableName, bodystr)
-	_, err := db.Query(createstr)
+	_, err := db.Exec(createstr)
 	return err
 }
 
 func DropTable(db *sql.DB, tableName string) error {
+
 	dropStr := fmt.Sprintf("DROP TABLE IF EXISTS %s;", tableName)
-	_, err := db.Query(dropStr)
+	_, err := db.Exec(dropStr)
 	return err
 }
+
+// func TableExist(db *sql.DB)
 
 func insertStr(tableName string, parameters map[string]string) string {
 	values := ""
@@ -65,13 +95,12 @@ func insertStr(tableName string, parameters map[string]string) string {
 
 func Insert(db *sql.DB, tableName string, parameters map[string]string) error {
 	queryStr := insertStr(tableName, parameters)
-	_, err := db.Query(queryStr)
+	_, err := db.Exec(queryStr)
 	fmt.Println(err)
 	return err
 }
 
 func InsertRecords(db *sql.DB, tableName string, records []map[string]string) error {
-
 	if len(records) == 0 {
 		return nil
 	}
@@ -111,6 +140,6 @@ func InsertRecords(db *sql.DB, tableName string, records []map[string]string) er
 INSERT INTO %s ("%s") VALUES 
 %s;`, tableName, keyStr, strings.TrimSuffix(valueStr, ",\n"))
 
-	_, err := db.Query(recordsInsertStr)
+	_, err := db.Exec(recordsInsertStr)
 	return err
 }

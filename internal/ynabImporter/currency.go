@@ -1,4 +1,4 @@
-package ynabImporter
+package ynabimporter
 
 import (
 	"encoding/json"

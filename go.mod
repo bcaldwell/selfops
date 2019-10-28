@@ -10,3 +10,5 @@ require (
 	github.com/robfig/cron v0.0.0-20180505203441-b41be1df6967
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
+
+go 1.13
