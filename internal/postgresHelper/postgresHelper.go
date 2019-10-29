@@ -17,7 +17,7 @@ func CreatePostgresClient() (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create db for databaseless connection: %s", err)
 	}
-	fmt.Println(fmt.Sprintf("SELECT datname FROM pg_database where datname = '%s'", config.CurrentYnabConfig().SQL.YnabDatabase))
+
 	rows, err := db.Query(fmt.Sprintf("SELECT datname FROM pg_database where datname = '%s'", config.CurrentYnabConfig().SQL.YnabDatabase))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get list of databases: %s", err)
