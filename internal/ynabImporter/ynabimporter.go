@@ -67,32 +67,27 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		}
 	}
 
-	// var waitGroup sync.WaitGroup
-  // waitGroup.Add(len(config.CurrentYnabConfig().Budgets))
-	for _, b := range config.CurrentYnabConfig().Budgets {
-		// go func() {
-			err = importer.importTransactions(b, config.CurrentYnabConfig().Currencies)
-			if err != nil {
-				// fmt.Println(err)
-				return err
-			}
-			err = importer.importAccounts(b, config.CurrentYnabConfig().Currencies)
-			if err != nil {
-				// fmt.Println(err)
-				return err
-			}
-			// waitGroup.Done()
-		// }()
+	err = importer.recreateTransactionTable()
+	if err != nil {
+		return err
 	}
 
-	// waitGroup.Wait()
+	for _, b := range config.CurrentYnabConfig().Budgets {
+		err = importer.importTransactions(b, config.CurrentYnabConfig().Currencies)
+		if err != nil {
+			return err
+		}
+		err = importer.importAccounts(b, config.CurrentYnabConfig().Currencies)
+		if err != nil {
+			return err
+		}
+	}
 
 	importer.importNetworth(config.CurrentYnabConfig().Budgets, config.CurrentYnabConfig().Currencies)
 
 	return nil
 }
 
-// todo: handle my error
 func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error {
 	budgets, err := importer.ynabClient.BudgetService.List()
 	if err != nil {
@@ -135,7 +130,6 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 }
 
 func (importer *ImportYNABRunner) deleteRowsByDate(table string, date string, filters map[string]string) error {
-	// fmt.Println("DELETE FROM \"" + table + "\" where date=" + date)
 	queryString := fmt.Sprintf("DELETE FROM \"%s\" where date = $1", table)
 	i := 2
 	parmas := []interface{}{date}

@@ -123,8 +123,6 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 }
 
 func (importer *ImportYNABRunner) createSqlForTransaction(regex *regexp.Regexp, budget config.Budget, currencies []string, transaction ynab.TransactionDetail) (map[string]string, error) {
-	importer.recreateTransactionTable()
-
 	var memo string
 	if transaction.Memo != nil {
 		memo = *transaction.Memo
