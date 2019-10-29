@@ -78,7 +78,7 @@ func insertStr(tableName string, parameters map[string]string) string {
 	first := true
 	for key, value := range parameters {
 		if value == "" {
-			value = "NULL"
+			value = "EMPTY"
 		} else {
 			value = "'" + value + "'"
 		}
@@ -125,7 +125,7 @@ func InsertRecords(db *sql.DB, tableName string, records []map[string]string) er
 		for i, key := range keys {
 			value := record[key]
 			if value == "" {
-				value = "NULL"
+				value = "''"
 			} else {
 				value = "'" + strings.Replace(value, "'", "", -1) + "'"
 			}
@@ -137,10 +137,10 @@ func InsertRecords(db *sql.DB, tableName string, records []map[string]string) er
 		}
 		valueStr += "),\n"
 	}
+
 	recordsInsertStr := fmt.Sprintf(`
 INSERT INTO %s ("%s") VALUES 
 %s;`, tableName, keyStr, strings.TrimSuffix(valueStr, ",\n"))
-
 	_, err := db.Exec(recordsInsertStr)
 	return err
 }

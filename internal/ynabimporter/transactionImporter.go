@@ -177,7 +177,7 @@ func (importer *ImportYNABRunner) createSqlForTransaction(regex *regexp.Regexp, 
 	if len(memoTags) != 0 {
 		sqlRow["tags"] = fmt.Sprintf("{\"%s\"}", strings.Join(memoTags, "\",\""))
 	} else {
-		sqlRow["tags"] = ""
+		sqlRow["tags"] = "{}"
 	}
 
 	sqlRow["transactionDate"] = transaction.Date
