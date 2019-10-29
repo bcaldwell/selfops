@@ -6,7 +6,7 @@ jobs:
       - checkout
       - run:
           name: Install ci-scripts
-          command: wget -q -O - https://raw.githubusercontent.com/bcaldwell/ci-scripts/master/scripts/install.sh | sh
+          command: wget -q -O - https://raw.githubusercontent.com/bcaldwell/ci-scripts/master/scripts/install.sh | bash
 
       - run:
           name: Build and pushing docker image
