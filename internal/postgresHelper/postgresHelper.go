@@ -10,8 +10,8 @@ import (
 )
 
 func CreatePostgresClient() (*sql.DB, error) {
-	databaselessConnStr := fmt.Sprintf("host=%s user=%s password=%s sslmode=disable",
-		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword)
+	databaselessConnStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, "postgres")
 	db, err := sql.Open("postgres", databaselessConnStr)
 
 	if err != nil {
