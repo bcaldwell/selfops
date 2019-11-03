@@ -34,6 +34,7 @@ services:
         target: /selfops/config.yml
     networks:
       - influxdb
+      - postgres
 
 networks:
   influxdb:

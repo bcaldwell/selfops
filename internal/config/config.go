@@ -74,7 +74,7 @@ func readSecrets(filename string) (*Secrets, error) {
 	var err error
 
 	if ejsonKeyFile != "" {
-		ejsonKey, err = ioutil.ReadFile(filename)
+		ejsonKey, err = ioutil.ReadFile(ejsonKeyFile)
 		if err != nil {
 			return nil, err
 		}
