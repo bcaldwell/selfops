@@ -3,7 +3,9 @@ package config
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 
+	"github.com/Shopify/ejson"
 	"github.com/ghodss/yaml"
 )
 
@@ -67,7 +69,17 @@ func readConfig(filename string) (*Config, error) {
 }
 
 func readSecrets(filename string) (*Secrets, error) {
-	raw, err := ioutil.ReadFile(filename)
+	ejsonKeyFile := os.Getenv("YNAB_IMPORTER_EJSON_SECRET_KEY")
+	ejsonKey := []byte{}
+	var err error
+
+	if ejsonKeyFile != "" {
+		ejsonKey, err = ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+	}
+	raw, err := ejson.DecryptFile(filename, "/opt/ejson/keys", string(ejsonKey))
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/bcaldwell/selfops/internal/airtableimporter"
+	airtableImporter "github.com/bcaldwell/selfops/internal/airtableimporter"
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/ynabimporter"
 	"github.com/robfig/cron"
@@ -24,7 +24,7 @@ func main() {
 	singleRun := flag.Bool("single-run", false, "run importer once (disable cron)")
 	once := flag.Bool("once", false, "run importer once (disable cron)")
 	configFile := flag.String("config", "./config.yml", "configuration file")
-	secretsFile := flag.String("secrets", "./secrets.json", "secrets file")
+	secretsFile := flag.String("secrets", "./secrets.ejson", "secrets ejson file")
 	help := flag.Bool("help", false, "show command help")
 
 	flag.Parse()
