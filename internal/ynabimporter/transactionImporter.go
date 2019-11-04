@@ -183,13 +183,8 @@ func (importer *ImportYNABRunner) createSqlForTransaction(regex *regexp.Regexp, 
 	sqlRow["transactionDate"] = transaction.Date
 	sqlRow["updatedAt"] = time.Now().Format(time.UnixDate)
 
-	fields := map[string]interface{}{
-		"amount": amount,
-	}
-
 	for _, currency := range currencies {
 		value := Round(amount*budget.Conversions[currency], 0.01)
-		fields[currency] = value
 		sqlRow[currency] = strconv.FormatFloat(value, 'f', 2, 64)
 	}
 

@@ -1,93 +1,96 @@
 package ynabimporter
 
-// import (
-// 	"fmt"
-// 	"math"
-// 	"strconv"
-// 	"time"
+import (
+	"fmt"
+	"strconv"
 
-// 	"github.com/bcaldwell/selfops/internal/config"
-// 	"github.com/bcaldwell/selfops/internal/postgresHelper"
-// )
+	"github.com/bcaldwell/selfops/internal/config"
+	"github.com/bcaldwell/selfops/internal/postgresHelper"
+)
 
-// var baseBudgetsSqlSchema = map[string]string{
-// 	"name":       "varchar",
-// 	"currency":   "varchar",
-// 	"budgetName": "varchar",
-// 	"onBudget":   "boolean",
-// 	"type":       "varchar",
-// 	"balance":    "varchar",
-// 	"date":       "timestamp",
-// }
+var baseBudgetSqlSchema = map[string]string{
+	"category":      "varchar",
+	"categoryGroup": "varchar",
+	"month":         "timestamp",
+	"budgetName":    "varchar",
+	"currency":      "varchar",
+	"budgeted":      "float8",
+	"activity":      "float8",
+}
 
-// func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies []string) error {
-// 	importer.createBudgetTable()
-// 	sqlRecords := make([]map[string]string, 0)
+func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies []string) error {
+	// if err != nil {
 
-// 	accounts, err := importer.ynabClient.AccountsService.List(budget.ID)
-// 	if err != nil {
-// 		return fmt.Errorf("Error getting accounts: %s", err.Error())
-// 	}
+	// }
 
-// 	date := time.Now().Format("01-02-2006")
+	sqlRecords := make([]map[string]string, 0)
 
-// 	err = importer.deleteRowsByDate(config.CurrentYnabConfig().Sql.AccountsTable, date)
-// 	if err != nil {
-// 		return fmt.Errorf("Error getting deleting old account records for %s: %s", date, err.Error())
-// 	}
+	// importer.budgets[budget.ID].Months[0].Categories[0].
+	// months := importer.budgets[budget.ID].Months
+	categories := importer.budgets[budget.ID].Categories
 
-// 	for _, account := range accounts {
-// 		if account.Closed {
-// 			continue
-// 		}
+	// for monthIndex := range months {
+	// categories := months[monthIndex].Categories
+	for categoryIndex := range categories {
+		category := categories[categoryIndex]
 
-// 		balance := float64(account.Balance) / 1000.0
+		if category.Hidden {
+			continue
+		}
 
-// 		row := map[string]string{
-// 			"balance":    strconv.FormatFloat(balance, 'f', 2, 64),
-// 			"name":       account.Name,
-// 			"type":       account.Type,
-// 			"onBudget":   strconv.FormatBool(account.OnBudget),
-// 			"currency":   budget.Currency,
-// 			"budgetName": budget.Name,
-// 			"date":       date,
-// 		}
+		budgeted := float64(category.Budgeted) / 1000.0
+		activity := float64(category.Activity) / 1000.0
 
-// 		for _, currency := range currencies {
-// 			currencyBalance := Round(balance*budget.Conversions[currency], 0.01)
-// 			row[currency] = strconv.FormatFloat(currencyBalance, 'f', 2, 64)
-// 		}
+		row := map[string]string{
+			"category":      category.Name,
+			"categoryGroup": importer.categories[budget.Name][category.Id].Group,
+			"budgeted":      strconv.FormatFloat(budgeted, 'f', 2, 64),
+			"activity":      strconv.FormatFloat(activity, 'f', 2, 64),
+			// "name":       account.Name,
+			// "type":       account.Type,
+			"currency":   budget.Currency,
+			"budgetName": budget.Name,
+			// "month":      importer.budgets[budget.ID].,
+			// "month":      months[monthIndex].Month,
+		}
 
-// 		sqlRecords = append(sqlRecords, row)
-// 	}
+		for _, currency := range currencies {
+			value := Round(budgeted*budget.Conversions[currency], 0.01)
+			row[currency] = strconv.FormatFloat(value, 'f', 2, 64)
+		}
 
-// 	err = postgresHelper.InsertRecords(importer.db, config.CurrentYnabConfig().Sql.AccountsTable, sqlRecords)
-// 	if err != nil {
-// 		return fmt.Errorf("Error writing to sql: %s", err.Error())
-// 	}
+		sqlRecords = append(sqlRecords, row)
+	}
+	// }
 
-// 	fmt.Printf("Wrote %d accounts to influx from budget %s\n", len(accounts), budget.Name)
+	err := postgresHelper.InsertRecords(importer.db, config.CurrentYnabConfig().SQL.BudgetsTable, sqlRecords)
+	if err != nil {
+		return fmt.Errorf("Failed to write budgets to db: %v", err)
+	}
 
-// 	return nil
-// }
+	fmt.Printf("Wrote budget for %s to sql\n", budget.Name)
 
-// func (importer *ImportYNABRunner) createAccountsTable() error {
-// 	err := postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().Sql.AccountsTable, importer.createAccountsSQLSchema())
-// 	if err != nil {
-// 		return fmt.Errorf("Error creating table: %s", err)
-// 	}
-// 	return nil
-// }
+	return nil
+}
 
-// func (importer *ImportYNABRunner) createAccountsSQLSchema() map[string]string {
-// 	schema := baseAccountsSqlSchema
+func (importer *ImportYNABRunner) recreateBudgetTable() error {
+	err := postgresHelper.DropTable(importer.db, config.CurrentYnabConfig().SQL.BudgetsTable)
+	if err != nil {
+		return fmt.Errorf("Error dropping table: %s", err)
+	}
 
-// 	for _, currency := range config.CurrentYnabConfig().Currencies {
-// 		schema[currency] = "float8"
-// 	}
-// 	return schema
-// }
+	err = postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.BudgetsTable, importer.createBudgetSQLSchema())
+	if err != nil {
+		return fmt.Errorf("Error creating table: %s", err)
+	}
+	return nil
+}
 
-// func Round(x, unit float64) float64 {
-// 	return math.Round(x/unit) * unit
-// }
+func (importer *ImportYNABRunner) createBudgetSQLSchema() map[string]string {
+	schema := baseBudgetSqlSchema
+
+	for _, currency := range config.CurrentYnabConfig().Currencies {
+		schema[currency] = "float8"
+	}
+	return schema
+}

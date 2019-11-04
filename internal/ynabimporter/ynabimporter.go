@@ -72,12 +72,21 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		return err
 	}
 
+	err = importer.recreateBudgetTable()
+	if err != nil {
+		return err
+	}
+
 	for _, b := range config.CurrentYnabConfig().Budgets {
 		err = importer.importTransactions(b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}
 		err = importer.importAccounts(b, config.CurrentYnabConfig().Currencies)
+		if err != nil {
+			return err
+		}
+		err = importer.importBudgets(b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}
