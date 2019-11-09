@@ -9,4 +9,4 @@ FROM alpine
 RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 WORKDIR /selfops
 COPY --from=builder /selfops ./
-CMD ["./selfops"]
+ENTRYPOINT ["./selfops"]
