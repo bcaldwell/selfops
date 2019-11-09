@@ -12,6 +12,10 @@ import (
 	"github.com/robfig/cron"
 )
 
+const (
+	ConfigEnvName = "IMPORTERS_CONFIG"
+)
+
 type Runner interface {
 	Run() error
 	Close() error
@@ -36,7 +40,7 @@ func main() {
 		return
 	}
 
-	err := config.ReadConfig(*configFile, *secretsFile)
+	err := config.ReadConfig(ConfigEnvName, *configFile, *secretsFile)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

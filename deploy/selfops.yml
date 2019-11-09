@@ -5,7 +5,7 @@ services:
     command:
       - ynab
     environment:
-      - YNAB_IMPORTER_EJSON_SECRET_KEY=/run/secrets/ejson/key
+      - IMPORTERS_EJSON_SECRET_KEY=/run/secrets/ejson/key
     secrets:
       - source: selfops-secret-nov-03-2019
         target: /selfops/secrets.ejson
@@ -23,7 +23,7 @@ services:
     command:
       - airtable
     environment:
-      - YNAB_IMPORTER_EJSON_SECRET_KEY=/run/secrets/ejson/key
+      - IMPORTERS_EJSON_SECRET_KEY=/run/secrets/ejson/key
     secrets:
       - source: selfops-secret-nov-03-2019
         target: /selfops/secrets.ejson

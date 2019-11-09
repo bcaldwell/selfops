@@ -45,6 +45,14 @@ var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 // http://www.postgresqltutorial.com/postgresql-array/
 
 func (importer *ImportYNABRunner) importTransactions(budget config.Budget, currencies []string) error {
+	var err error
+	importAfterDate := time.Time{}
+	if budget.ImportAfterDate != "" {
+		importAfterDate, err = time.Parse("01-02-2006", budget.ImportAfterDate)
+		if err != nil {
+			return fmt.Errorf("Failed to parse import after date %s: %v", budget.ImportAfterDate, err)
+		}
+	}
 
 	sqlRecords := make([]map[string]string, 0)
 
@@ -60,6 +68,15 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 	}
 
 	for _, transaction := range transactions {
+		// check if transaction is before cutoff date
+		t, err := time.Parse("2006-01-02", transaction.Date)
+		if err != nil {
+			return fmt.Errorf("Unable to parse date: %s", err.Error())
+		}
+		if t.Before(importAfterDate) {
+			continue
+		}
+
 		if len(transaction.SubTransactions) == 0 {
 			sqlRow, err := importer.createSqlForTransaction(regex, budget, currencies, transaction)
 			if err != nil {
@@ -117,7 +134,7 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 		return fmt.Errorf("Error writing to sql: %s", err.Error())
 	}
 
-	fmt.Printf("Wrote %d transactions to influx from budget %s\n", len(transactions), budget.Name)
+	fmt.Printf("Wrote %d transactions to sql from budget %s\n", len(sqlRecords), budget.Name)
 
 	return nil
 }

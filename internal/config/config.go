@@ -2,18 +2,21 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/Shopify/ejson"
+	"github.com/caarlos0/env/v6"
 	"github.com/ghodss/yaml"
+	"github.com/imdario/mergo"
 )
 
 var config Config
 var secrets Secrets
 
-func ReadConfig(configFile, secretsFile string) error {
-	_, err := readConfig(configFile)
+func ReadConfig(configEnvVar, configFile, secretsFile string) error {
+	_, err := readConfig(configEnvVar, configFile)
 	if err != nil {
 		return err
 	}
@@ -54,13 +57,22 @@ func CurrentInfluxSecrets() *InfluxSecrets {
 }
 
 func CurrentSqlSecrets() *SqlSecrets {
-	return &secrets.Sql
+	return &secrets.SQL
 }
 
-func readConfig(filename string) (*Config, error) {
-	raw, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
+func readConfig(envName, filename string) (*Config, error) {
+	var raw []byte
+	var err error
+
+	rawEnv := os.Getenv(envName)
+	if rawEnv != "" {
+		fmt.Printf("Reading config from environment variable %s\n", envName)
+		raw = []byte(rawEnv)
+	} else {
+		raw, err = ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = yaml.Unmarshal(raw, &config)
@@ -69,7 +81,30 @@ func readConfig(filename string) (*Config, error) {
 }
 
 func readSecrets(filename string) (*Secrets, error) {
-	ejsonKeyFile := os.Getenv("YNAB_IMPORTER_EJSON_SECRET_KEY")
+	ejsonSecrets, ejsonErr := readEjsonSecrets(filename)
+
+	envSecrets, envErr := readEnvSecrets()
+
+	if ejsonErr == nil && envErr == nil {
+		err := mergo.Merge(envSecrets, *ejsonSecrets)
+		secrets = *envSecrets
+		if err != nil {
+			return nil, fmt.Errorf("Failed to merge secrets: %v", err)
+		}
+	} else if ejsonErr != nil && envErr == nil {
+		secrets = *envSecrets
+	} else if ejsonErr == nil && envErr != nil {
+		secrets = *ejsonSecrets
+	} else {
+		return nil, fmt.Errorf("Failed to parse secrets. Ejson error: %v. Env error: %v", ejsonErr, envErr)
+	}
+
+	return &secrets, nil
+}
+
+func readEjsonSecrets(filename string) (*Secrets, error) {
+	ejsonSecrets := Secrets{}
+	ejsonKeyFile := os.Getenv("IMPORTERS_EJSON_SECRET_KEY")
 	ejsonKey := []byte{}
 	var err error
 
@@ -84,7 +119,12 @@ func readSecrets(filename string) (*Secrets, error) {
 		return nil, err
 	}
 
-	err = json.Unmarshal(raw, &secrets)
+	err = json.Unmarshal(raw, &ejsonSecrets)
+	return &ejsonSecrets, err
+}
 
-	return &secrets, err
+func readEnvSecrets() (*Secrets, error) {
+	envSecrets := Secrets{}
+	err := env.Parse(&envSecrets)
+	return &envSecrets, err
 }

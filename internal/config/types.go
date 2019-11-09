@@ -9,7 +9,11 @@ type Secrets struct {
 	Ynab     YnabSecrets
 	Airtable AirtableSecrets
 	Influx   InfluxSecrets
-	Sql      SqlSecrets
+	SQL      SqlSecrets
+
+	// Altternative to Sql struct, also specifies table name which will be used for all importer
+	// designed to be used with heroku env variable
+	DatabaseURL string `env:"DATABASE_URL"`
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -21,7 +25,6 @@ type YnabConfig struct {
 	Currencies      []string
 	Budgets         []Budget
 	SQL             struct {
-		Enabled           bool
 		YnabDatabase      string
 		TransactionsTable string
 		AccountsTable     string
@@ -34,29 +37,13 @@ type YnabConfig struct {
 	}
 }
 
-type YnabSecrets struct {
-	YnabAccessToken string `json:"ynabAccessToken"`
-}
-
-type InfluxSecrets struct {
-	InfluxEndpoint string
-	InfluxUsername string
-	InfluxPassword string
-}
-
-type SqlSecrets struct {
-	SqlHost     string
-	SqlUsername string
-	SqlPassword string
-}
-
 type Budget struct {
-	Name        string             `json:"name"`
-	ID          string             `json:"id"`
-	Currency    string             `json:"currency"`
-	Conversions CurrencyConversion `json:"conversions"`
-	// EssentialCategories    []string
-	// EssentialCategoryGroup []string
+	Name string `json:"name"`
+	// Date to import transactions after
+	ImportAfterDate  string             `json:"importAfterDate"`
+	ID               string             `json:"id"`
+	Currency         string             `json:"currency"`
+	Conversions      CurrencyConversion `json:"conversions"`
 	CalculatedFields []CalculatedField
 }
 
@@ -69,6 +56,22 @@ type CalculatedField struct {
 }
 
 type CurrencyConversion map[string]float64
+
+type YnabSecrets struct {
+	YnabAccessToken string `json:"ynabAccessToken" env:"YNAB_ACCESS_TOKEN"`
+}
+
+type InfluxSecrets struct {
+	InfluxEndpoint string
+	InfluxUsername string
+	InfluxPassword string
+}
+
+type SqlSecrets struct {
+	SqlHost     string `env:"SQL_HOST"`
+	SqlUsername string `env:"SQL_USERNAME"`
+	SqlPassword string `env:"SQL_PASSWORD"`
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Airtable

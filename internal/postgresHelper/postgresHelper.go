@@ -9,38 +9,48 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func CreatePostgresClient() (*sql.DB, error) {
-	databaselessConnStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, "postgres")
-	db, err := sql.Open("postgres", databaselessConnStr)
+func CreatePostgresClient(dbname string) (*sql.DB, error) {
+	// bypass creating of db if database_url is set because we are likely running in heroku then
+	if config.CurrentSecrets().DatabaseURL == "" {
+		databaselessConnStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+			config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, "postgres")
+		db, err := sql.Open("postgres", databaselessConnStr)
 
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create db for databaseless connection: %s", err)
-	}
-
-	rows, err := db.Query(fmt.Sprintf("SELECT datname FROM pg_database where datname = '%s'", config.CurrentYnabConfig().SQL.YnabDatabase))
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get list of databases: %s", err)
-	}
-	defer rows.Close()
-
-	// next meaning there is a row, all we care about is if there is a row
-	if !rows.Next() {
-		fmt.Printf("Creating database %s in postgres database\n", config.CurrentYnabConfig().SQL.YnabDatabase)
-		_, err := db.Exec("CREATE DATABASE " + config.CurrentYnabConfig().SQL.YnabDatabase)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed to create db for databaseless connection: %s", err)
+		}
+
+		rows, err := db.Query(fmt.Sprintf("SELECT datname FROM pg_database where datname = '%s'", config.CurrentYnabConfig().SQL.YnabDatabase))
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get list of databases: %s", err)
+		}
+		defer rows.Close()
+
+		// next meaning there is a row, all we care about is if there is a row
+		if !rows.Next() {
+			fmt.Printf("Creating database %s in postgres database\n", config.CurrentYnabConfig().SQL.YnabDatabase)
+			_, err := db.Exec("CREATE DATABASE " + config.CurrentYnabConfig().SQL.YnabDatabase)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, config.CurrentYnabConfig().SQL.YnabDatabase)
-	db, err = sql.Open("postgres", connStr)
+	db, err := sql.Open("postgres", getConnectionString(dbname))
 	if err != nil {
 		return db, err
 	}
 	err = db.Ping()
 	return db, err
+}
+
+func getConnectionString(dbname string) string {
+	if config.CurrentSecrets().DatabaseURL != "" {
+		return config.CurrentSecrets().DatabaseURL
+	}
+
+	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, dbname)
 }
 
 func CreateTable(db *sql.DB, tableName string, parameters map[string]string) error {
@@ -97,7 +107,6 @@ func insertStr(tableName string, parameters map[string]string) string {
 func Insert(db *sql.DB, tableName string, parameters map[string]string) error {
 	queryStr := insertStr(tableName, parameters)
 	_, err := db.Exec(queryStr)
-	fmt.Println(err)
 	return err
 }
 

@@ -27,7 +27,7 @@ func (i *ImportYNABRunner) Close() error {
 func NewImportYNABRunner() (*ImportYNABRunner, error) {
 	ynabClient := ynab.NewDefaultClient(config.CurrentYnabSecrets().YnabAccessToken)
 
-	db, err := postgresHelper.CreatePostgresClient()
+	db, err := postgresHelper.CreatePostgresClient(config.CurrentYnabConfig().SQL.YnabDatabase)
 	if err != nil {
 		return nil, fmt.Errorf("Error connecting to postgres DB: %s", err)
 	}
@@ -92,7 +92,10 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		}
 	}
 
-	importer.importNetworth(config.CurrentYnabConfig().Budgets, config.CurrentYnabConfig().Currencies)
+	err = importer.importNetworth(config.CurrentYnabConfig().Budgets, config.CurrentYnabConfig().Currencies)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
