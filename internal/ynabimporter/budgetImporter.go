@@ -45,6 +45,7 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 			"category":      category.Name,
 			"categoryGroup": importer.categories[budget.Name][category.Id].Group,
 			"budgeted":      strconv.FormatFloat(budgeted, 'f', 2, 64),
+			"amount":        strconv.FormatFloat(budgeted, 'f', 2, 64),
 			"activity":      strconv.FormatFloat(activity, 'f', 2, 64),
 			// "name":       account.Name,
 			// "type":       account.Type,
