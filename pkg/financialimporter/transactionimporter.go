@@ -45,22 +45,15 @@ var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 // http://www.postgresqltutorial.com/postgresql-array/
 
 type TransactionImporter struct {
-	currencyConversions CurrencyConversion
-	transactions []Transaction
-	importAfterDate time.Time
+}
 
+type transactionQueue struct {
+	transactions []Transaction
 	transactionQueueIndex int
 	transactionQueueIndexMux sync.Mutex
-
-	sqlRecords []map[string]string
-	sqlRecordsMux sync.Mutex
 }
 
-func NewTransactionImporter(transactions []Transaction, importAfterDate time.Time, currencyConversions CurrencyConversion) *TransactionImporter {
-
-}
-
-func (importer *TransactionImporter) ImportTransactions() error {
+func (importer *TransactionImporter) importTransactions(transactions []Transaction, importAfterDate time.Time, currencyConversions CurrencyConversion	) error {
 	var err error
 	// importAfterDate := time.Time{}
 	// if budget.ImportAfterDate != "" {
