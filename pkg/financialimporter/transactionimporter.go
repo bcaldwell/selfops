@@ -1,4 +1,4 @@
-package ynabimporter
+package financialimporter
 
 import (
 	"fmt"
@@ -44,32 +44,48 @@ var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 
 // http://www.postgresqltutorial.com/postgresql-array/
 
-func (importer *ImportYNABRunner) importTransactions(budget config.Budget, currencies []string) error {
+type TransactionImporter struct {
+	currencyConversions CurrencyConversion
+	transactions []Transaction
+	importAfterDate time.Time
+
+	transactionQueueIndex int
+	transactionQueueIndexMux sync.Mutex
+
+	sqlRecords []map[string]string
+	sqlRecordsMux sync.Mutex
+}
+
+func NewTransactionImporter(transactions []Transaction, importAfterDate time.Time, currencyConversions CurrencyConversion) *TransactionImporter {
+
+}
+
+func (importer *TransactionImporter) ImportTransactions() error {
 	var err error
-	importAfterDate := time.Time{}
-	if budget.ImportAfterDate != "" {
-		importAfterDate, err = time.Parse("01-02-2006", budget.ImportAfterDate)
-		if err != nil {
-			return fmt.Errorf("Failed to parse import after date %s: %v", budget.ImportAfterDate, err)
-		}
-	}
+	// importAfterDate := time.Time{}
+	// if budget.ImportAfterDate != "" {
+	// 	importAfterDate, err = time.Parse("01-02-2006", budget.ImportAfterDate)
+	// 	if err != nil {
+	// 		return fmt.Errorf("Failed to parse import after date %s: %v", budget.ImportAfterDate, err)
+	// 	}
+	// }
 
 	sqlRecords := make([]map[string]string, 0)
 
-	regexPattern := config.CurrentYnabConfig().Tags.RegexMatch
-	if regexPattern == "" {
-		regexPattern = default_Regex
-	}
-	regex := regexp.MustCompile(regexPattern)
+	// regexPattern := config.CurrentYnabConfig().Tags.RegexMatch
+	// if regexPattern == "" {
+	// 	regexPattern = default_Regex
+	// }
+	// regex := regexp.MustCompile(regexPattern)
 
-	transactions, err := importer.ynabClient.TransactionsService.List(budget.ID)
-	if err != nil {
-		return fmt.Errorf("Error getting transactions: %s", err.Error())
-	}
+	// transactions, err := importer.ynabClient.TransactionsService.List(budget.ID)
+	// if err != nil {
+	// 	return fmt.Errorf("Error getting transactions: %s", err.Error())
+	// }
 
 	for _, transaction := range transactions {
 		// check if transaction is before cutoff date
-		t, err := time.Parse("2006-01-02", transaction.Date)
+		t, err := time.Parse("2006-01-02", transaction.Date())
 		if err != nil {
 			return fmt.Errorf("Unable to parse date: %s", err.Error())
 		}
@@ -77,7 +93,7 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 			continue
 		}
 
-		if len(transaction.SubTransactions) == 0 {
+		if len(transaction.SubTransactions()) == 0 {
 			sqlRow, err := importer.createSqlForTransaction(regex, budget, currencies, transaction)
 			if err != nil {
 				return err
@@ -138,6 +154,8 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 
 	return nil
 }
+
+func
 
 func (importer *ImportYNABRunner) createSqlForTransaction(regex *regexp.Regexp, budget config.Budget, currencies []string, transaction ynab.TransactionDetail) (map[string]string, error) {
 	var memo string
