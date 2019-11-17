@@ -19,7 +19,7 @@ func (t TransactionType) String() string {
 		return "Unknown"
 	}
 
-	return [...]string{"Expense", "Income", "Transfer"}[t]
+	return [...]string{"expense", "income", "transfer"}[t]
 }
 
 type Transaction interface {
