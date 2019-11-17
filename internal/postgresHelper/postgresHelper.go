@@ -13,7 +13,8 @@ func CreatePostgresClient(dbname string) (*sql.DB, error) {
 	// bypass creating of db if database_url is set because we are likely running in heroku then
 	if config.CurrentSecrets().DatabaseURL == "" {
 		databaselessConnStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-			config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, "postgres")
+			config.CurrentSQLSecrets().SQLHost, config.CurrentSQLSecrets().SQLUsername, config.CurrentSQLSecrets().SQLPassword, "postgres")
+
 		db, err := sql.Open("postgres", databaselessConnStr)
 
 		if err != nil {
@@ -24,6 +25,7 @@ func CreatePostgresClient(dbname string) (*sql.DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get list of databases: %s", err)
 		}
+
 		defer rows.Close()
 
 		// next meaning there is a row, all we care about is if there is a row
@@ -50,7 +52,7 @@ func getConnectionString(dbname string) string {
 	}
 
 	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, dbname)
+		config.CurrentSQLSecrets().SQLHost, config.CurrentSQLSecrets().SQLUsername, config.CurrentSQLSecrets().SQLPassword, dbname)
 }
 
 func CreateTable(db *sql.DB, tableName string, parameters map[string]string) error {

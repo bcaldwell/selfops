@@ -3,13 +3,14 @@ package config
 type Config struct {
 	Ynab     YnabConfig
 	Airtable AirtableConfig
+	CSV      CSVConfig
 }
 
 type Secrets struct {
 	Ynab     YnabSecrets
 	Airtable AirtableSecrets
 	Influx   InfluxSecrets
-	SQL      SqlSecrets
+	SQL      SQLSecrets `json:"sql"`
 
 	// Altternative to Sql struct, also specifies table name which will be used for all importer
 	// designed to be used with heroku env variable
@@ -68,10 +69,10 @@ type InfluxSecrets struct {
 	InfluxPassword string
 }
 
-type SqlSecrets struct {
-	SqlHost     string `env:"SQL_HOST"`
-	SqlUsername string `env:"SQL_USERNAME"`
-	SqlPassword string `env:"SQL_PASSWORD"`
+type SQLSecrets struct {
+	SQLHost     string `json:"sqlHost" env:"SQL_HOST"`
+	SQLUsername string `json:"sqlUsername" env:"SQL_USERNAME"`
+	SQLPassword string `json:"sqlPassword" env:"SQL_PASSWORD"`
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -99,4 +100,21 @@ type AirtableFieldsConfig struct {
 
 type AirtableSecrets struct {
 	AirtableAPIKey string `json:"airtableApiKey"`
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// CSV
+///////////////////////////////////////////////////////////////////////////////////////
+
+type CSVConfig struct {
+	Transactions CSVTransactionConfig `json:"transactions"`
+}
+
+type CSVTransactionConfig struct {
+	ColumnTranslation map[string]string `json:"columnTransactions"`
+	Table             string
+	CalculatedFields  []CalculatedField
+	Currency          string
+	Currencies        []string
+	ImportAfterDate   string
 }

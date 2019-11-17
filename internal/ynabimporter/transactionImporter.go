@@ -3,7 +3,6 @@ package ynabimporter
 import (
 	"fmt"
 	"regexp"
-	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresHelper"
@@ -59,15 +58,7 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 		}
 	}
 
-	importAfterDate := time.Time{}
-	if budget.ImportAfterDate != "" {
-		importAfterDate, err = time.Parse("01-02-2006", budget.ImportAfterDate)
-		if err != nil {
-			return fmt.Errorf("Failed to parse import after date %s: %v", budget.ImportAfterDate, err)
-		}
-	}
-
-	i := financialimporter.NewTransactionImporter(importer.db, transactions, budget.CalculatedFields, budget.Currency, currencies, importAfterDate, config.CurrentYnabConfig().SQL.TransactionsTable)
+	i := financialimporter.NewTransactionImporter(importer.db, transactions, budget.CalculatedFields, budget.Currency, currencies, budget.ImportAfterDate, config.CurrentYnabConfig().SQL.TransactionsTable)
 
 	written, err := i.Import()
 	if err != nil {

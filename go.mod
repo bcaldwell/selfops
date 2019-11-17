@@ -12,6 +12,7 @@ require (
 	github.com/influxdata/platform v0.0.0-20181221182312-e2169abb1f83 // indirect
 	github.com/lib/pq v1.0.0
 	github.com/robfig/cron v0.0.0-20180505203441-b41be1df6967
+	github.com/sirupsen/logrus v1.4.2
 )
 
 go 1.13

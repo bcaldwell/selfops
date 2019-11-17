@@ -29,7 +29,7 @@ var baseTransactionsSQLSchema = map[string]string{
 
 // http://www.postgresqltutorial.com/postgresql-array/
 
-func NewTransactionImporter(db *sql.DB, transactions []Transaction, calculatedFields []config.CalculatedField, transactionCurrency string, currencies []string, importAfterDate time.Time, sqlTable string) FinancialImporter {
+func NewTransactionImporter(db *sql.DB, transactions []Transaction, calculatedFields []config.CalculatedField, transactionCurrency string, currencies []string, importAfterDate string, sqlTable string) FinancialImporter {
 	return &TransactionImporter{
 		db:                  db,
 		calculatedFields:    calculatedFields,
@@ -45,7 +45,7 @@ type TransactionImporter struct {
 	db                  *sql.DB
 	calculatedFields    []config.CalculatedField
 	transactions        []Transaction
-	importAfterDate     time.Time
+	importAfterDate     string
 	transactionCurrency string
 	currencies          []string
 	currencyConversions CurrencyConversion
@@ -54,6 +54,14 @@ type TransactionImporter struct {
 
 func (importer *TransactionImporter) Import() (int, error) {
 	var err error
+
+	importAfterDate := time.Time{}
+	if importer.importAfterDate != "" {
+		importAfterDate, err = time.Parse("01-02-2006", importer.importAfterDate)
+		if err != nil {
+			return 0, fmt.Errorf("Failed to parse import after date %s: %v", importer.importAfterDate, err)
+		}
+	}
 
 	importer.currencyConversions, err = generateCurrencyConversions(importer.transactionCurrency, importer.currencies)
 	if err != nil {
@@ -72,7 +80,7 @@ func (importer *TransactionImporter) Import() (int, error) {
 			return 0, fmt.Errorf("unable to parse date: %s", err.Error())
 		}
 
-		if t.Before(importer.importAfterDate) {
+		if t.Before(importAfterDate) {
 			continue
 		}
 

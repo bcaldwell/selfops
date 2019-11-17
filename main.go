@@ -8,6 +8,7 @@ import (
 
 	airtableImporter "github.com/bcaldwell/selfops/internal/airtableimporter"
 	"github.com/bcaldwell/selfops/internal/config"
+	"github.com/bcaldwell/selfops/internal/csvimporter"
 	"github.com/bcaldwell/selfops/internal/ynabimporter"
 	"github.com/robfig/cron"
 )
@@ -46,13 +47,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(os.Args) == 1 {
+	argsWithoutFlags := flag.Args()
+
+	if len(argsWithoutFlags) < 1 {
 		fmt.Println("No task passed in")
 		return
 	}
-	taskIndex := len(os.Args) - 1
 
-	switch os.Args[taskIndex] {
+	switch argsWithoutFlags[0] {
 	case "ynab":
 		runner, err = ynabimporter.NewImportYNABRunner()
 		if err != nil {
@@ -63,8 +65,21 @@ func main() {
 	case "airtable":
 		runner = airtableImporter.ImportAirtableRunner{}
 		frequency = config.CurrentAirtableConfig().UpdateFrequency
+	case "csv":
+		if len(argsWithoutFlags) < 2 {
+			fmt.Println("csv file name not passed in")
+			return
+		}
+
+		runner, err = csvimporter.NewImportCSVRunner(argsWithoutFlags[1])
+		if err != nil {
+			fmt.Printf("Failed to create csv importer: %s\n", err)
+			return
+		}
+
+		*singleRun = true
 	default:
-		fmt.Println("No task passed in")
+		fmt.Printf("Task %s not found\n", argsWithoutFlags[0])
 		return
 	}
 
@@ -80,7 +95,11 @@ func main() {
 	}
 
 	c := cron.New()
-	c.AddFunc(frequency, run)
+	err = c.AddFunc(frequency, run)
+	if err != nil {
+		fmt.Println("Failed to create con job")
+		return
+	}
 
 	c.Start()
 

@@ -25,6 +25,7 @@ func ReadConfig(configEnvVar, configFile, secretsFile string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -56,17 +57,23 @@ func CurrentInfluxSecrets() *InfluxSecrets {
 	return &secrets.Influx
 }
 
-func CurrentSqlSecrets() *SqlSecrets {
+func CurrentSQLSecrets() *SQLSecrets {
 	return &secrets.SQL
+}
+
+func CurrentCSVConfig() *CSVConfig {
+	return &config.CSV
 }
 
 func readConfig(envName, filename string) (*Config, error) {
 	var raw []byte
+
 	var err error
 
 	rawEnv := os.Getenv(envName)
 	if rawEnv != "" {
 		fmt.Printf("Reading config from environment variable %s\n", envName)
+
 		raw = []byte(rawEnv)
 	} else {
 		raw, err = ioutil.ReadFile(filename)
@@ -87,10 +94,11 @@ func readSecrets(filename string) (*Secrets, error) {
 
 	if ejsonErr == nil && envErr == nil {
 		err := mergo.Merge(envSecrets, *ejsonSecrets)
-		secrets = *envSecrets
 		if err != nil {
 			return nil, fmt.Errorf("Failed to merge secrets: %v", err)
 		}
+
+		secrets = *envSecrets
 	} else if ejsonErr != nil && envErr == nil {
 		secrets = *envSecrets
 	} else if ejsonErr == nil && envErr != nil {
@@ -106,6 +114,7 @@ func readEjsonSecrets(filename string) (*Secrets, error) {
 	ejsonSecrets := Secrets{}
 	ejsonKeyFile := os.Getenv("IMPORTERS_EJSON_SECRET_KEY")
 	ejsonKey := []byte{}
+
 	var err error
 
 	if ejsonKeyFile != "" {
@@ -114,17 +123,20 @@ func readEjsonSecrets(filename string) (*Secrets, error) {
 			return nil, err
 		}
 	}
+
 	raw, err := ejson.DecryptFile(filename, "/opt/ejson/keys", string(ejsonKey))
 	if err != nil {
 		return nil, err
 	}
 
 	err = json.Unmarshal(raw, &ejsonSecrets)
+
 	return &ejsonSecrets, err
 }
 
 func readEnvSecrets() (*Secrets, error) {
 	envSecrets := Secrets{}
 	err := env.Parse(&envSecrets)
+
 	return &envSecrets, err
 }
