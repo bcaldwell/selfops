@@ -54,13 +54,16 @@ type TransactionImporter struct {
 
 func (importer *TransactionImporter) Import() (int, error) {
 	var err error
-	importer.currencyConversions, err = generateCurrencyConversions(importer.transactionCurrency, importer.currencies)
 
+	importer.currencyConversions, err = generateCurrencyConversions(importer.transactionCurrency, importer.currencies)
 	if err != nil {
 		return 0, err
 	}
 
-	sqlRecords := make([]map[string]string, 0)
+	// sqlRecords holds a record(map) representing the sql rows to be added
+	// It will be roughly the size of importer.transactions + number of sub transactions
+	// set the initial size to 0 so append works but set cap to a good guess
+	sqlRecords := make([]map[string]string, 0, len(importer.transactions))
 
 	for _, transaction := range importer.transactions {
 		// check if transaction is before cutoff date
@@ -97,8 +100,6 @@ func (importer *TransactionImporter) Import() (int, error) {
 		return 0, fmt.Errorf("error writing to sql: %w", err)
 	}
 
-	// fmt.Printf("Wrote %d transactions to sql from budget %s\n", len(sqlRecords), importer.budgetName)
-
 	return len(sqlRecords), nil
 }
 
@@ -111,7 +112,6 @@ func (importer *TransactionImporter) createSQLForTransaction(transaction Transac
 	}
 
 	transactionMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
-	// fmt.Println(t.String() + "  " + transactionMonth.String())
 
 	sqlRow := map[string]string{
 		"category":         transaction.Category(),
@@ -130,9 +130,6 @@ func (importer *TransactionImporter) createSQLForTransaction(transaction Transac
 	}
 
 	memoTags := transaction.Tags()
-	// for _, t := range memoTags {
-	// 	sqlRow[t] = "true"
-	// }
 
 	if len(memoTags) != 0 {
 		sqlRow["tags"] = fmt.Sprintf("{\"%s\"}", strings.Join(memoTags, "\",\""))
@@ -146,10 +143,6 @@ func (importer *TransactionImporter) createSQLForTransaction(transaction Transac
 	for _, currency := range importer.currencies {
 		value := Round(amount*importer.currencyConversions[currency], 0.01)
 		sqlRow[currency] = strconv.FormatFloat(value, 'f', 2, 64)
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("error adding new point: %s", err.Error())
 	}
 
 	return sqlRow, nil

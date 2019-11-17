@@ -34,10 +34,10 @@ func (t *YnabTransaction) CategoryGroup() string {
 }
 
 func (t *YnabTransaction) Memo() string {
-	if t.TransactionDetail.Memo != nil {
-		return *t.TransactionDetail.Memo
+	if t.TransactionDetail.Memo == nil {
+		return ""
 	}
-	return ""
+	return *t.TransactionDetail.Memo
 }
 
 func (t *YnabTransaction) Amount() float64 {
@@ -48,10 +48,12 @@ func (t *YnabTransaction) TransactionType() financialimporter.TransactionType {
 	if t.Amount() >= 0 {
 		return financialimporter.Income
 	}
+
 	if t.TransferAccountId != nil {
 		// transfers might be only counted in one account
 		return financialimporter.Transfer
 	}
+
 	return financialimporter.Expense
 }
 
@@ -64,10 +66,11 @@ func (t *YnabTransaction) HasSubTransactions() bool {
 }
 
 func (t *YnabTransaction) SubTransactions() []financialimporter.Transaction {
-	transactions := []financialimporter.Transaction{}
-	for _, transaction := range t.TransactionDetail.SubTransactions {
-		transactions = append(transactions, &YnabSubTransaction{&transaction, t})
+	transactions := make([]financialimporter.Transaction, len(t.TransactionDetail.SubTransactions))
+	for i := range t.TransactionDetail.SubTransactions {
+		transactions[i] = &YnabSubTransaction{&t.TransactionDetail.SubTransactions[i], t}
 	}
+
 	return transactions
 }
 
@@ -107,10 +110,11 @@ func (t *YnabSubTransaction) CategoryGroup() string {
 }
 
 func (t *YnabSubTransaction) Memo() string {
-	if t.SubTransaction.Memo != nil {
-		return *t.SubTransaction.Memo
+	if t.SubTransaction.Memo == nil {
+		return t.Parent.Memo()
 	}
-	return t.Parent.Memo()
+
+	return *t.SubTransaction.Memo
 }
 
 func (t *YnabSubTransaction) Amount() float64 {
@@ -121,10 +125,12 @@ func (t *YnabSubTransaction) TransactionType() financialimporter.TransactionType
 	if t.Amount() >= 0 {
 		return financialimporter.Income
 	}
+
 	if t.TransferAccountId != nil {
 		// transfers might be only counted in one account
 		return financialimporter.Transfer
 	}
+
 	return financialimporter.Expense
 }
 

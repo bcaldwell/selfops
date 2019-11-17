@@ -32,22 +32,16 @@ var baseTransactionsSqlSchema = map[string]string{
 	"updatedAt":        "timestamp",
 }
 
-const (
-	expense  TransactionType = "expense"
-	income                   = "income"
-	transfer                 = "transfer"
-)
-
-var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
+var defaultRegex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 
 // http://www.postgresqltutorial.com/postgresql-array/
 
 func (importer *ImportYNABRunner) importTransactions(budget config.Budget, currencies []string) error {
-
 	regexPattern := config.CurrentYnabConfig().Tags.RegexMatch
 	if regexPattern == "" {
-		regexPattern = default_Regex
+		regexPattern = defaultRegex
 	}
+
 	regex := regexp.MustCompile(regexPattern)
 
 	ynabTransactions, err := importer.ynabClient.TransactionsService.List(budget.ID)
@@ -74,6 +68,7 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 	}
 
 	i := financialimporter.NewTransactionImporter(importer.db, transactions, budget.CalculatedFields, budget.Currency, currencies, importAfterDate, config.CurrentYnabConfig().SQL.TransactionsTable)
+
 	written, err := i.Import()
 	if err != nil {
 		return err
@@ -94,6 +89,7 @@ func (importer *ImportYNABRunner) recreateTransactionTable() error {
 	if err != nil {
 		return fmt.Errorf("Error creating table: %s", err)
 	}
+
 	return nil
 }
 
@@ -107,6 +103,7 @@ func (importer *ImportYNABRunner) createTransactionsSQLSchema() map[string]strin
 			}
 		}
 	}
+
 	for _, currency := range config.CurrentYnabConfig().Currencies {
 		schema[currency] = "float8"
 	}
