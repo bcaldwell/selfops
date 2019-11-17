@@ -20,3 +20,4 @@ secrets_prod.ejson
 !.circleci/**/*
 
 fitbit_secrets.json
+.vscode

@@ -1,25 +1,18 @@
 package financialimporter
 
 import (
+	"database/sql"
 	"fmt"
-	"regexp"
+	"math"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresHelper"
-	"github.com/davidsteinsland/ynab-go/ynab"
 )
 
-type TransactionType string
-type category struct {
-	Name  string
-	Group string
-	Id    string
-}
-
-var baseTransactionsSqlSchema = map[string]string{
+var baseTransactionsSQLSchema = map[string]string{
 	"transactionDate":  "timestamp",
 	"transactionMonth": "timestamp",
 	"category":         "varchar",
@@ -34,240 +27,144 @@ var baseTransactionsSqlSchema = map[string]string{
 	"updatedAt":        "timestamp",
 }
 
-const (
-	expense  TransactionType = "expense"
-	income                   = "income"
-	transfer                 = "transfer"
-)
-
-var default_Regex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
-
 // http://www.postgresqltutorial.com/postgresql-array/
 
+func NewTransactionImporter(db *sql.DB, transactions []Transaction, calculatedFields []config.CalculatedField, transactionCurrency string, currencies []string, importAfterDate time.Time, sqlTable string) FinancialImporter {
+	return &TransactionImporter{
+		db:                  db,
+		calculatedFields:    calculatedFields,
+		transactions:        transactions,
+		transactionCurrency: transactionCurrency,
+		currencies:          currencies,
+		importAfterDate:     importAfterDate,
+		sqlTable:            sqlTable,
+	}
+}
+
 type TransactionImporter struct {
+	db                  *sql.DB
+	calculatedFields    []config.CalculatedField
+	transactions        []Transaction
+	importAfterDate     time.Time
+	transactionCurrency string
+	currencies          []string
+	currencyConversions CurrencyConversion
+	sqlTable            string
 }
 
-type transactionQueue struct {
-	transactions []Transaction
-	transactionQueueIndex int
-	transactionQueueIndexMux sync.Mutex
-}
-
-func (importer *TransactionImporter) importTransactions(transactions []Transaction, importAfterDate time.Time, currencyConversions CurrencyConversion	) error {
+func (importer *TransactionImporter) Import() (int, error) {
 	var err error
-	// importAfterDate := time.Time{}
-	// if budget.ImportAfterDate != "" {
-	// 	importAfterDate, err = time.Parse("01-02-2006", budget.ImportAfterDate)
-	// 	if err != nil {
-	// 		return fmt.Errorf("Failed to parse import after date %s: %v", budget.ImportAfterDate, err)
-	// 	}
-	// }
+	importer.currencyConversions, err = generateCurrencyConversions(importer.transactionCurrency, importer.currencies)
+
+	if err != nil {
+		return 0, err
+	}
 
 	sqlRecords := make([]map[string]string, 0)
 
-	// regexPattern := config.CurrentYnabConfig().Tags.RegexMatch
-	// if regexPattern == "" {
-	// 	regexPattern = default_Regex
-	// }
-	// regex := regexp.MustCompile(regexPattern)
-
-	// transactions, err := importer.ynabClient.TransactionsService.List(budget.ID)
-	// if err != nil {
-	// 	return fmt.Errorf("Error getting transactions: %s", err.Error())
-	// }
-
-	for _, transaction := range transactions {
+	for _, transaction := range importer.transactions {
 		// check if transaction is before cutoff date
 		t, err := time.Parse("2006-01-02", transaction.Date())
 		if err != nil {
-			return fmt.Errorf("Unable to parse date: %s", err.Error())
+			return 0, fmt.Errorf("unable to parse date: %s", err.Error())
 		}
-		if t.Before(importAfterDate) {
+
+		if t.Before(importer.importAfterDate) {
 			continue
 		}
 
-		if len(transaction.SubTransactions()) == 0 {
-			sqlRow, err := importer.createSqlForTransaction(regex, budget, currencies, transaction)
-			if err != nil {
-				return err
-			}
-			sqlRecords = append(sqlRecords, sqlRow)
-		} else {
-			for _, t := range transaction.SubTransactions {
-				// todo: fix fallback here
-				var transactionCategory string
-				var transactionCategoryID *string
+		sqlRow, err := importer.createSQLForTransaction(transaction)
+		if err != nil {
+			return 0, err
+		}
 
-				if t.CategoryId != nil {
-					transactionCategory = importer.categories[budget.Name][*t.CategoryId].Name
-					transactionCategoryID = t.CategoryId
-				} else {
-					transactionCategory = importer.categories[budget.Name][*transaction.CategoryId].Name
-					transactionCategoryID = transaction.CategoryId
-				}
-				memo := transaction.Memo
-				if t.Memo != nil {
-					memo = t.Memo
-				}
-				payeeName := transaction.PayeeName
-				// if t.PayeeId != nil {
-				// 	p, err := importer.ynabClient.PayeesService.Get(budget.ID, *t.PayeeId)
-				// 	payeeName = p.Name
-				// 	if err != nil {
-				// 		return fmt.Errorf("Unable to get payee from id: %s", err.Error())
-				// 	}
-				// }
-
-				sqlRow, err := importer.createSqlForTransaction(regex, budget, currencies, ynab.TransactionDetail{
-					CategoryName: transactionCategory,
-					PayeeName:    payeeName,
-					AccountName:  transaction.AccountName,
-					TransactionSummary: ynab.TransactionSummary{
-						Memo:              memo,
-						Amount:            t.Amount,
-						TransferAccountId: transaction.TransferAccountId,
-						Date:              transaction.Date,
-						CategoryId:        transactionCategoryID,
-					},
-				})
+		if transaction.HasSubTransactions() {
+			for _, t := range transaction.SubTransactions() {
+				sqlRow, err := importer.createSQLForTransaction(t)
 				if err != nil {
-					return err
+					return 0, err
 				}
+
 				sqlRecords = append(sqlRecords, sqlRow)
 			}
+		} else {
+			sqlRecords = append(sqlRecords, sqlRow)
 		}
 	}
 
-	err = postgresHelper.InsertRecords(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable, sqlRecords)
+	err = postgresHelper.InsertRecords(importer.db, importer.sqlTable, sqlRecords)
 	if err != nil {
-		return fmt.Errorf("Error writing to sql: %s", err.Error())
+		return 0, fmt.Errorf("error writing to sql: %w", err)
 	}
 
-	fmt.Printf("Wrote %d transactions to sql from budget %s\n", len(sqlRecords), budget.Name)
+	// fmt.Printf("Wrote %d transactions to sql from budget %s\n", len(sqlRecords), importer.budgetName)
 
-	return nil
+	return len(sqlRecords), nil
 }
 
-func
+func (importer *TransactionImporter) createSQLForTransaction(transaction Transaction) (map[string]string, error) {
+	amount := transaction.Amount()
 
-func (importer *ImportYNABRunner) createSqlForTransaction(regex *regexp.Regexp, budget config.Budget, currencies []string, transaction ynab.TransactionDetail) (map[string]string, error) {
-	var memo string
-	if transaction.Memo != nil {
-		memo = *transaction.Memo
-	}
-
-	amount := float64(transaction.Amount) / 1000.0
-
-	transactionType := expense
-	if amount >= 0 {
-		transactionType = income
-	}
-	if transaction.TransferAccountId != nil {
-		// transfers might be only counted in one account
-		transactionType = transfer
-	}
-
-	var categoryGroup string
-	if transaction.CategoryId != nil {
-		categoryGroup = importer.categories[budget.Name][*transaction.CategoryId].Group
-	}
-
-	t, err := time.Parse("2006-01-02", transaction.Date)
+	t, err := time.Parse("2006-01-02", transaction.Date())
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse date: %s", err.Error())
+		return nil, fmt.Errorf("unable to parse date: %s", err.Error())
 	}
 
 	transactionMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
 	// fmt.Println(t.String() + "  " + transactionMonth.String())
 
-	tags := map[string]string{
-		"category":         transaction.CategoryName,
-		"categoryGroup":    categoryGroup,
-		"payee":            transaction.PayeeName,
-		"account":          transaction.AccountName,
-		"memo":             memo,
-		"currency":         budget.Currency,
+	sqlRow := map[string]string{
+		"category":         transaction.Category(),
+		"categoryGroup":    transaction.CategoryGroup(),
+		"payee":            transaction.Payee(),
+		"account":          transaction.Account(),
+		"memo":             transaction.Memo(),
+		"currency":         importer.transactionCurrency,
 		"amount":           strconv.FormatFloat(amount, 'f', 2, 64),
-		"transactionType":  string(transactionType),
+		"transactionType":  transaction.TransactionType().String(),
 		"transactionMonth": transactionMonth.Format("2006-01-02"),
 	}
 
-	for _, field := range budget.CalculatedFields {
-		tags[field.Name] = strconv.FormatBool(calculateField(field, transaction, categoryGroup))
+	for _, field := range importer.calculatedFields {
+		sqlRow[field.Name] = strconv.FormatBool(calculateField(field, transaction))
 	}
 
-	memoTags := tagsList(regex, memo)
-	for _, t := range memoTags {
-		tags[t] = "true"
-	}
+	memoTags := transaction.Tags()
+	// for _, t := range memoTags {
+	// 	sqlRow[t] = "true"
+	// }
 
-	sqlRow := tags
 	if len(memoTags) != 0 {
 		sqlRow["tags"] = fmt.Sprintf("{\"%s\"}", strings.Join(memoTags, "\",\""))
 	} else {
 		sqlRow["tags"] = "{}"
 	}
 
-	sqlRow["transactionDate"] = transaction.Date
+	sqlRow["transactionDate"] = transaction.Date()
 	sqlRow["updatedAt"] = time.Now().Format(time.UnixDate)
 
-	for _, currency := range currencies {
-		value := Round(amount*budget.Conversions[currency], 0.01)
+	for _, currency := range importer.currencies {
+		value := Round(amount*importer.currencyConversions[currency], 0.01)
 		sqlRow[currency] = strconv.FormatFloat(value, 'f', 2, 64)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Error adding new point: %s", err.Error())
+		return nil, fmt.Errorf("error adding new point: %s", err.Error())
 	}
+
 	return sqlRow, nil
 }
 
-func calculateField(field config.CalculatedField, transaction ynab.TransactionDetail, categoryGroup string) bool {
-	return stringInSlice(transaction.CategoryName, field.Category) ||
-		stringInSlice(categoryGroup, field.CategoryGroup) ||
-		stringInSlice(transaction.PayeeName, field.Payee)
-}
+func calculateField(field config.CalculatedField, transaction Transaction) bool {
+	boolean := stringInSlice(transaction.Category(), field.Category) ||
+		stringInSlice(transaction.CategoryGroup(), field.CategoryGroup) ||
+		stringInSlice(transaction.Payee(), field.Payee)
 
-func tagsList(regex *regexp.Regexp, memo string) []string {
-	var tags []string
-	parts := strings.Split(memo, ",")
-	for _, s := range parts {
-		// remove spaces and conver to lowercase
-		s = strings.ToLower(strings.TrimSpace(s))
-		if regex.Match([]byte(s)) {
-			tags = append(tags, s)
-		}
-	}
-	return tags
-}
-
-func (importer *ImportYNABRunner) recreateTransactionTable() error {
-	err := postgresHelper.DropTable(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable)
-	if err != nil {
-		return fmt.Errorf("Error dropping table: %s", err)
+	if field.Inverted {
+		return !boolean
 	}
 
-	err = postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable, importer.createTransactionsSQLSchema())
-	if err != nil {
-		return fmt.Errorf("Error creating table: %s", err)
-	}
-	return nil
-}
-
-func (importer *ImportYNABRunner) createTransactionsSQLSchema() map[string]string {
-	schema := baseTransactionsSqlSchema
-
-	for _, budget := range config.CurrentYnabConfig().Budgets {
-		for _, field := range budget.CalculatedFields {
-			if _, ok := schema[field.Name]; !ok {
-				schema[field.Name] = "boolean"
-			}
-		}
-	}
-	for _, currency := range config.CurrentYnabConfig().Currencies {
-		schema[currency] = "float8"
-	}
-	return schema
+	return boolean
 }
 
 func stringInSlice(a string, list []string) bool {
@@ -276,5 +173,44 @@ func stringInSlice(a string, list []string) bool {
 			return true
 		}
 	}
+
 	return false
+}
+
+func (importer *TransactionImporter) CreateOrUpdateSQLTable() error {
+	err := postgresHelper.CreateTable(importer.db, importer.sqlTable, importer.createTransactionsSQLSchema())
+	if err != nil {
+		return fmt.Errorf("error creating table: %s", err)
+	}
+
+	return nil
+}
+
+func (importer *TransactionImporter) DropSQLTable() error {
+	err := postgresHelper.DropTable(importer.db, importer.sqlTable)
+	if err != nil {
+		return fmt.Errorf("error dropping table: %s", err)
+	}
+
+	return err
+}
+
+func (importer *TransactionImporter) createTransactionsSQLSchema() map[string]string {
+	schema := baseTransactionsSQLSchema
+
+	for _, field := range importer.calculatedFields {
+		if _, ok := schema[field.Name]; !ok {
+			schema[field.Name] = "boolean"
+		}
+	}
+
+	for _, currency := range importer.currencies {
+		schema[currency] = "float8"
+	}
+
+	return schema
+}
+
+func Round(x, unit float64) float64 {
+	return math.Round(x/unit) * unit
 }

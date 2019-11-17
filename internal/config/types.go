@@ -45,6 +45,7 @@ type Budget struct {
 	Currency         string             `json:"currency"`
 	Conversions      CurrencyConversion `json:"conversions"`
 	CalculatedFields []CalculatedField
+	// CalculatedFields []financialimporter.CalculatedField
 }
 
 type CalculatedField struct {
@@ -52,7 +53,7 @@ type CalculatedField struct {
 	Category      []string
 	CategoryGroup []string
 	Payee         []string
-	inverted      bool
+	Inverted      bool
 }
 
 type CurrencyConversion map[string]float64

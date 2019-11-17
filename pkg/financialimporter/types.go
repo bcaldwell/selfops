@@ -1,15 +1,40 @@
 package financialimporter
 
+type FinancialImporter interface {
+	Import() (int, error)
+	CreateOrUpdateSQLTable() error
+	DropSQLTable() error
+}
+
+type TransactionType int
+
+const (
+	Expense TransactionType = iota
+	Income
+	Transfer
+)
+
+func (t TransactionType) String() string {
+	if t < Expense || t > Transfer {
+		return "Unknown"
+	}
+
+	return [...]string{"Expense", "Income", "Transfer"}[t]
+}
+
 type Transaction interface {
 	Date() string
 	Payee() string
 	Category() string
+	CategoryGroup() string
 	Memo() string
 
-	Currency() string
+	// Currency() string
 	Amount() float64
+	TransactionType() TransactionType
 
 	Tags() []string
+	HasSubTransactions() bool
 	SubTransactions() []Transaction
 
 	Account() string
@@ -18,3 +43,11 @@ type Transaction interface {
 }
 
 type CurrencyConversion map[string]float64
+
+// type CalculatedField struct {
+// 	Name          string
+// 	Category      []string
+// 	CategoryGroup []string
+// 	Payee         []string
+// 	Inverted      bool
+// }
