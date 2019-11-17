@@ -13,10 +13,6 @@ jobs:
           command: ci-scripts docker/build_and_push_image --docker-images-dockerRepo benjamincaldwell/selfops
 
   deploy:
-    branches:
-      only:
-        - master
-
     docker:
       - image: docker:18.06.0-ce
     environment:
@@ -43,3 +39,6 @@ workflows:
       - deploy:
           requires:
             - build
+          filters:
+            branches:
+              only: master
