@@ -16,6 +16,7 @@ var baseBudgetSqlSchema = map[string]string{
 	"currency":      "varchar",
 	"budgeted":      "float8",
 	"activity":      "float8",
+	"amount":        "float8",
 }
 
 func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies []string) error {
