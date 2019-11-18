@@ -45,13 +45,14 @@ func (t *YnabTransaction) Amount() float64 {
 }
 
 func (t *YnabTransaction) TransactionType() financialimporter.TransactionType {
-	if t.Amount() >= 0 {
-		return financialimporter.Income
-	}
-
+	// check if its a transfer first so all transfer ins arent reported as income
 	if t.TransferAccountId != nil {
 		// transfers might be only counted in one account
 		return financialimporter.Transfer
+	}
+
+	if t.Amount() >= 0 {
+		return financialimporter.Income
 	}
 
 	return financialimporter.Expense
