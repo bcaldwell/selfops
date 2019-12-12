@@ -12,7 +12,7 @@ var baseBudgetSqlSchema = map[string]string{
 	"category":      "varchar",
 	"categoryGroup": "varchar",
 	"month":         "timestamp",
-	"budgetName":    "varchar",
+	"name":          "varchar",
 	"currency":      "varchar",
 	"budgeted":      "float8",
 	"activity":      "float8",
@@ -48,10 +48,8 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 			"budgeted":      strconv.FormatFloat(budgeted, 'f', 2, 64),
 			"amount":        strconv.FormatFloat(budgeted, 'f', 2, 64),
 			"activity":      strconv.FormatFloat(activity, 'f', 2, 64),
-			// "name":       account.Name,
-			// "type":       account.Type,
-			"currency":   budget.Currency,
-			"budgetName": budget.Name,
+			"name":          budget.Name,
+			"currency":      budget.Currency,
 			// "month":      importer.budgets[budget.ID].,
 			// "month":      months[monthIndex].Month,
 		}
@@ -59,6 +57,15 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 		for _, currency := range currencies {
 			value := Round(budgeted*budget.Conversions[currency], 0.01)
 			row[currency] = strconv.FormatFloat(value, 'f', 2, 64)
+		}
+
+		for _, field := range budget.CalculatedFields {
+			calculateField := stringInSlice(category.Name, field.Category) || stringInSlice(row["categoryGroup"], field.CategoryGroup)
+
+			if field.Inverted {
+				calculateField = !calculateField
+			}
+			row[field.Name] = strconv.FormatBool(calculateField)
 		}
 
 		sqlRecords = append(sqlRecords, row)
@@ -75,21 +82,37 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 	return nil
 }
 
-func (importer *ImportYNABRunner) recreateBudgetTable() error {
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (importer *ImportYNABRunner) recreateBudgetTable(calculatedFields []config.CalculatedField) error {
 	err := postgresHelper.DropTable(importer.db, config.CurrentYnabConfig().SQL.BudgetsTable)
 	if err != nil {
 		return fmt.Errorf("Error dropping table: %s", err)
 	}
 
-	err = postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.BudgetsTable, importer.createBudgetSQLSchema())
+	err = postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.BudgetsTable, importer.createBudgetSQLSchema(calculatedFields))
 	if err != nil {
 		return fmt.Errorf("Error creating table: %s", err)
 	}
 	return nil
 }
 
-func (importer *ImportYNABRunner) createBudgetSQLSchema() map[string]string {
+func (importer *ImportYNABRunner) createBudgetSQLSchema(calculatedFields []config.CalculatedField) map[string]string {
 	schema := baseBudgetSqlSchema
+
+	for _, field := range calculatedFields {
+		if _, ok := schema[field.Name]; !ok {
+			schema[field.Name] = "boolean"
+		}
+	}
 
 	for _, currency := range config.CurrentYnabConfig().Currencies {
 		schema[currency] = "float8"
