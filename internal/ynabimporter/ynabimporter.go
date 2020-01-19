@@ -72,7 +72,7 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		return err
 	}
 
-	err = importer.recreateBudgetTable()
+	err = importer.recreateBudgetTable(config.CurrentYnabConfig().Budgets[0].CalculatedFields)
 	if err != nil {
 		return err
 	}
