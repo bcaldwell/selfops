@@ -92,8 +92,10 @@ func readSecrets(filename string) (*Secrets, error) {
 			return nil, fmt.Errorf("Failed to merge secrets: %v", err)
 		}
 	} else if ejsonErr != nil && envErr == nil {
+		fmt.Printf("Warning: Error to parse ejson secret. Ejson error: %v", ejsonErr)
 		secrets = *envSecrets
 	} else if ejsonErr == nil && envErr != nil {
+		fmt.Printf("Warning: Error to parse env secret. Env error: %v", envErr)
 		secrets = *ejsonSecrets
 	} else {
 		return nil, fmt.Errorf("Failed to parse secrets. Ejson error: %v. Env error: %v", ejsonErr, envErr)

@@ -74,7 +74,7 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 		return fmt.Errorf("Error writing accounts to sql: %s", err.Error())
 	}
 
-	fmt.Printf("Wrote %d accounts to influx from budget %s\n", len(accounts), budget.Name)
+	fmt.Printf("Wrote %d accounts to sql from budget %s\n", len(accounts), budget.Name)
 
 	return nil
 }
