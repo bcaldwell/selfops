@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "selfops.fullname" . }}
+  labels:
+    {{- include "selfops.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "selfops.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "selfops.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - ./selfops
+            - ynab
+          
+          env:
+            - name: IMPORTERS_EJSON_SECRET_KEY
+              value: /var/run/secrets/ejson/ejson-key
+          
+          volumeMounts:
+            - name: config-volume
+              mountPath: /selfops/config.yml
+              subPath: config.yml
+            - name: secrets-volume
+              mountPath: /selfops/secrets.ejson
+              subPath: secrets_prod.ejson
+            - name: ejson-key-volume
+              mountPath: /var/run/secrets/ejson
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ .Values.volumnes.configVolume }}
+        - name: secrets-volume
+          secret:
+            secretName: {{ .Values.volumnes.secretName }}
+        - name: ejson-key-volume
+          secret:
+            secretName: {{ .Values.volumnes.ejsonKey }}
+

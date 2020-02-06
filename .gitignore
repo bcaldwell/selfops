@@ -15,6 +15,7 @@ config.yml
 secrets.json
 secrets.ejson
 secrets_prod.ejson
+secrets_local.ejson
 .env
 
 !.circleci/**/*
