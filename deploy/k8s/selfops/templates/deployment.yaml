@@ -40,7 +40,7 @@ spec:
               subPath: config.yml
             - name: secrets-volume
               mountPath: /selfops/secrets.ejson
-              subPath: secrets_prod.ejson
+              subPath: secrets.ejson
             - name: ejson-key-volume
               mountPath: /var/run/secrets/ejson
 

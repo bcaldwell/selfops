@@ -1,12 +1,14 @@
 version: 2
 jobs:
-  build:
-    machine: true
+  release-docker:
+    docker:
+      - image: benjamincaldwell/ci-scripts
+
+    working_directory: /go/src/github.com/bcaldwell/ci-scripts
+
     steps:
       - checkout
-      - run:
-          name: Install ci-scripts
-          command: wget -q -O - https://raw.githubusercontent.com/bcaldwell/ci-scripts/master/scripts/install.sh | bash
+      - setup_remote_docker
 
       - run:
           name: Build and pushing docker image
@@ -14,31 +16,32 @@ jobs:
 
   deploy:
     docker:
-      - image: docker:18.06.0-ce
+      - image: benjamincaldwell/ci-scripts
+
     environment:
-      CLUSTER_DOMAIN: benjamincaldwell.ca
+      CI_SCRIPTS_CONFIG: ./.circleci/ci_scripts.yml
 
     steps:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - "80:58:cd:21:56:5a:81:10:54:58:0c:a3:d1:4b:04:b8"
-      - run:
-          name: Install ci-scripts
-          command: wget -q -O - https://raw.githubusercontent.com/bcaldwell/ci-scripts/master/scripts/install.sh | sh
+            # k8s cluster
+            - "46:38:75:f2:09:9f:c5:8b:84:32:4f:02:66:c6:5c:6b"
+            # github deploy key
+            - "b4:db:e5:d9:77:38:e8:0d:18:32:60:2e:ec:44:e4:5c"
 
       - run:
           name: Deploying
-          command: ci-scripts docker/deploy --docker-swarm-stack selfops --docker-swarm-deployfile deploy/selfops.yml
+          command: ci-scripts kubernetes/deploy
 
 workflows:
   version: 2
   build_and_deploy:
     jobs:
-      - build
+      - release-docker
       - deploy:
           requires:
-            - build
+            - release-docker
           filters:
             branches:
               only: master
