@@ -30,6 +30,10 @@ jobs:
             # github deploy key
             - "b4:db:e5:d9:77:38:e8:0d:18:32:60:2e:ec:44:e4:5c"
 
+      - run: 
+          name: "Setup custom environment variables"
+          command: |
+            echo 'export DOCKER_IMAGE_DEPLOY_TAG="${CIRCLE_SHA1}"' >> $BASH_ENV
       - run:
           name: Deploying
           command: ci-scripts kubernetes/deploy
