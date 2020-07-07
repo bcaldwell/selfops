@@ -53,8 +53,13 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 			}
 
 			for _, currency := range currencies {
-				value := Round(budgeted*budget.Conversions[currency], 0.01)
-				row[currency] = strconv.FormatFloat(value, 'f', 2, 64)
+				// convert budgeted
+				convertedBudgeted := Round(budgeted*budget.Conversions[currency], 0.01)
+				row[currency] = strconv.FormatFloat(convertedBudgeted, 'f', 2, 64)
+				
+				// convert activity
+				convertedActivity := Round(activity*budget.Conversions[currency], 0.01)
+				row["activity_" + currency] = strconv.FormatFloat(convertedActivity, 'f', 2, 64)
 			}
 
 			for _, field := range budget.CalculatedFields {
@@ -115,6 +120,7 @@ func (importer *ImportYNABRunner) createBudgetSQLSchema(calculatedFields []confi
 
 	for _, currency := range config.CurrentYnabConfig().Currencies {
 		schema[currency] = "float8"
+		schema["activity_" + currency] = "float8"
 	}
 
 	return schema
