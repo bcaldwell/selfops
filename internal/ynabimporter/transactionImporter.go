@@ -44,6 +44,7 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 
 	regex := regexp.MustCompile(regexPattern)
 
+	// need to get transactions from transaction service to have the sub transaction data
 	ynabTransactions, err := importer.ynabClient.TransactionsService.List(budget.ID)
 	if err != nil {
 		return fmt.Errorf("Error getting transactions: %s", err.Error())

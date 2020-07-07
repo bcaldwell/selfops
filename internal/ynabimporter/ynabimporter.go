@@ -16,12 +16,12 @@ type ImportYNABRunner struct {
 	categories map[string]map[string]category
 }
 
-func (i *ImportYNABRunner) Run() error {
-	return i.importYNAB()
+func (importer *ImportYNABRunner) Run() error {
+	return importer.importYNAB()
 }
 
-func (i *ImportYNABRunner) Close() error {
-	return i.db.Close()
+func (importer *ImportYNABRunner) Close() error {
+	return importer.db.Close()
 }
 
 func NewImportYNABRunner() (*ImportYNABRunner, error) {
@@ -49,20 +49,18 @@ func (importer *ImportYNABRunner) importYNAB() error {
 			return fmt.Errorf("Failed to get budget details for %s", err)
 		}
 
-		importer.categories[b.Name] = make(map[string]category)
-
-		categoryGroups, err := importer.ynabClient.CategoriesService.List(b.ID)
-		if err != nil {
-			return fmt.Errorf("Unable to get categories for budget %s: %s", b.Name, err.Error())
+		categoryGroupIDToName := make(map[string]string)
+		for _, g := range importer.budgets[b.ID].CategoryGroups {
+			categoryGroupIDToName[g.Id] = g.Name
 		}
 
-		for _, categoryGroup := range categoryGroups {
-			for _, c := range categoryGroup.Categories {
-				importer.categories[b.Name][c.Id] = category{
-					Id:    c.Id,
-					Name:  c.Name,
-					Group: categoryGroup.CategoryGroup.Name,
-				}
+		importer.categories[b.Name] = make(map[string]category)
+
+		for _, c := range importer.budgets[b.ID].Categories {
+			importer.categories[b.Name][c.Id] = category{
+				Id:    c.Id,
+				Name:  c.Name,
+				Group: categoryGroupIDToName[c.CategoryGroupId],
 			}
 		}
 	}
@@ -105,19 +103,24 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 	if err != nil {
 		return err
 	}
+
 	for i, budgetConfig := range conf.Budgets {
 		if budgetConfig.ID == "" {
 			found := false
+
 			for _, b := range budgets {
 				if budgetConfig.Name == b.Name {
 					conf.Budgets[i].ID = b.Id
 					if budgetConfig.Currency == "" {
 						conf.Budgets[i].Currency = b.CurrencyFormat.IsoCode
 					}
+
 					found = true
+
 					break
 				}
 			}
+
 			if !found {
 				return fmt.Errorf("Unable to find ID for budget: %s", budgetConfig.Name)
 			}
@@ -126,6 +129,7 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 		if conf.Budgets[i].Conversions == nil {
 			conf.Budgets[i].Conversions = make(config.CurrencyConversion)
 		}
+
 		for _, currency := range conf.Currencies {
 			if _, ok := conf.Budgets[i].Conversions[currency]; ok {
 				continue
@@ -135,7 +139,6 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 			if err != nil {
 				return err
 			}
-
 		}
 	}
 	return nil
@@ -144,12 +147,16 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 func (importer *ImportYNABRunner) deleteRowsByDate(table string, date string, filters map[string]string) error {
 	queryString := fmt.Sprintf("DELETE FROM \"%s\" where date = $1", table)
 	i := 2
+
 	parmas := []interface{}{date}
+
 	for key, value := range filters {
 		queryString += fmt.Sprintf(" AND \"%v\" = $%v", key, i)
 		parmas = append(parmas, value)
+
 		i++
 	}
+
 	_, err := importer.db.Exec(queryString, parmas...)
 	return err
 }
