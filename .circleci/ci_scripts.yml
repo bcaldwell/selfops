@@ -1,8 +1,8 @@
 kubernetes:
   deploy:
-    repo: git@github.com:bcaldwell/k8s-config.git
-    configFolder: selfops/selfops
+    config:
+      repo: git@github.com:bcaldwell/k8s-config.git
+      folder: selfops/selfops
     namespace: selfops
     helmChart: deploy/k8s/selfops
     releaseName: selfops-ynab
-    remotePortforwardHost: kube-api
