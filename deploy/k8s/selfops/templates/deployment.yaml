@@ -33,6 +33,8 @@ spec:
           env:
             - name: IMPORTERS_EJSON_SECRET_KEY
               value: /var/run/secrets/ejson/ejson-key
+            - name: TZ
+              value: America/Los_Angeles
           
           volumeMounts:
             - name: config-volume
