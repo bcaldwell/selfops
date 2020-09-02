@@ -13,6 +13,8 @@ image:
 nameOverride: ""
 fullnameOverride: ""
 
+env: {}
+
 podSecurityContext:
   # fsGroup: 2000
   runAsNonRoot: true
