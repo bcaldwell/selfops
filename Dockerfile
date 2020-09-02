@@ -1,4 +1,4 @@
-FROM golang:1.15 AS builder
+FROM golang:1.14 AS builder
 
 WORKDIR $GOPATH/src/github.com/bcaldwell/selfops
 
