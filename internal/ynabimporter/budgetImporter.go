@@ -17,6 +17,7 @@ var baseBudgetSQLSchema = map[string]string{
 	"currency":      "varchar",
 	"budgeted":      "float8",
 	"activity":      "float8",
+	"balance":       "float8",
 	"amount":        "float8",
 }
 
@@ -38,6 +39,7 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 
 			budgeted := float64(category.Budgeted) / 1000.0
 			activity := float64(category.Activity) / 1000.0
+			balance := float64(category.Balance) / 1000.0
 
 			row := map[string]string{
 				"ynabID":        category.Id,
@@ -46,6 +48,7 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 				"budgeted":      strconv.FormatFloat(budgeted, 'f', 2, 64),
 				"amount":        strconv.FormatFloat(budgeted, 'f', 2, 64),
 				"activity":      strconv.FormatFloat(activity, 'f', 2, 64),
+				"balance":       strconv.FormatFloat(balance, 'f', 2, 64),
 				"name":          budget.Name,
 				"currency":      budget.Currency,
 				// "month":      importer.budgets[budget.ID].,
@@ -60,6 +63,11 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 				// convert activity
 				convertedActivity := Round(activity*budget.Conversions[currency], 0.01)
 				row["activity_" + currency] = strconv.FormatFloat(convertedActivity, 'f', 2, 64)
+				
+				
+				// convert balance
+				convertedBalance := Round(balance*budget.Conversions[currency], 0.01)
+				row["balance_" + currency] = strconv.FormatFloat(convertedBalance, 'f', 2, 64)
 			}
 
 			for _, field := range budget.CalculatedFields {
@@ -121,6 +129,7 @@ func (importer *ImportYNABRunner) createBudgetSQLSchema(calculatedFields []confi
 	for _, currency := range config.CurrentYnabConfig().Currencies {
 		schema[currency] = "float8"
 		schema["activity_" + currency] = "float8"
+		schema["balance_" + currency] = "float8"
 	}
 
 	return schema
