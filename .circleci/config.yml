@@ -23,7 +23,7 @@ jobs:
       - run:
           name: Updating docker image in k8s-config
           command: |
-            curl -H "Authorization: token $GITHUB_TOKEN" -H 'Accept: application/vnd.github.v3.raw' https://api.github.com/repos/bcaldwell/k8s-config/contents/scripts/update_docker_image.sh | bash /dev/stdin selfops/grafana ${CIRCLE_SHA1}
+            curl -H "Authorization: token $GITHUB_TOKEN" -H 'Accept: application/vnd.github.v3.raw' https://api.github.com/repos/bcaldwell/k8s-config/contents/scripts/update_docker_image.sh | bash /dev/stdin selfops/selfops ${CIRCLE_SHA1}
 
 
 workflows:
