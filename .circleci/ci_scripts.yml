@@ -1,8 +1,0 @@
-kubernetes:
-  deploy:
-    config:
-      repo: git@github.com:bcaldwell/k8s-config.git
-      folder: selfops/selfops
-    namespace: selfops
-    helmChart: deploy/k8s/selfops
-    releaseName: selfops-ynab
