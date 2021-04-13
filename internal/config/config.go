@@ -44,6 +44,10 @@ func CurrentYnabSecrets() *YnabSecrets {
 	return &secrets.Ynab
 }
 
+func CurrentExchangeRateAPISecrets() *ExchangerateAPISecrets {
+	return &secrets.ExchangerateAPI
+}
+
 func CurrentAirtableConfig() *AirtableConfig {
 	return &config.Airtable
 }

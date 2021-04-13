@@ -6,10 +6,11 @@ type Config struct {
 }
 
 type Secrets struct {
-	Ynab     YnabSecrets
-	Airtable AirtableSecrets
-	Influx   InfluxSecrets
-	SQL      SqlSecrets
+	Ynab            YnabSecrets
+	Airtable        AirtableSecrets
+	Influx          InfluxSecrets
+	SQL             SqlSecrets
+	ExchangerateAPI ExchangerateAPISecrets `json:"exchangeratesapi"`
 
 	// Altternative to Sql struct, also specifies table name which will be used for all importer
 	// designed to be used with heroku env variable
@@ -72,6 +73,10 @@ type SqlSecrets struct {
 	SqlHost     string `env:"SQL_HOST"`
 	SqlUsername string `env:"SQL_USERNAME"`
 	SqlPassword string `env:"SQL_PASSWORD"`
+}
+
+type ExchangerateAPISecrets struct {
+	AccessKey string `json:"accessKey" env:"EXCHANGE_RATES_API_ACCESS_KEY"`
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

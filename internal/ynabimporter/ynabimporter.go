@@ -10,10 +10,11 @@ import (
 )
 
 type ImportYNABRunner struct {
-	ynabClient *ynab.Client
-	db         *sql.DB
-	budgets    map[string]ynab.BudgetDetail
-	categories map[string]map[string]category
+	ynabClient        *ynab.Client
+	currencyConverter *currencyConverter
+	db                *sql.DB
+	budgets           map[string]ynab.BudgetDetail
+	categories        map[string]map[string]category
 }
 
 func (importer *ImportYNABRunner) Run() error {
@@ -32,8 +33,14 @@ func NewImportYNABRunner() (*ImportYNABRunner, error) {
 		return nil, fmt.Errorf("Error connecting to postgres DB: %s", err)
 	}
 
+	fmt.Printf("%#v\n", config.CurrentSecrets())
+
 	return &ImportYNABRunner{
-		ynabClient, db, make(map[string]ynab.BudgetDetail), make(map[string]map[string]category),
+		ynabClient:        ynabClient,
+		currencyConverter: NewCurrencyConverter(config.CurrentExchangeRateAPISecrets().AccessKey),
+		db:                db,
+		budgets:           make(map[string]ynab.BudgetDetail),
+		categories:        make(map[string]map[string]category),
 	}, nil
 }
 
@@ -111,6 +118,7 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 			for _, b := range budgets {
 				if budgetConfig.Name == b.Name {
 					conf.Budgets[i].ID = b.Id
+					fmt.Println(b.CurrencyFormat, budgetConfig.Currency)
 					if budgetConfig.Currency == "" {
 						conf.Budgets[i].Currency = b.CurrencyFormat.IsoCode
 					}
@@ -135,7 +143,7 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 				continue
 			}
 
-			conf.Budgets[i].Conversions[currency], err = conversionRate(conf.Budgets[i].Currency, currency)
+			conf.Budgets[i].Conversions[currency], err = importer.currencyConverter.conversionRate(conf.Budgets[i].Currency, currency)
 			if err != nil {
 				return err
 			}

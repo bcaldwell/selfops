@@ -5,23 +5,48 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"time"
 )
 
-const CurrencyConversionEndpoint = "https://api.exchangeratesapi.io"
+const CurrencyConversionEndpoint = "http://api.exchangeratesapi.io"
+
+type cacheItem struct {
+	expiration time.Time
+	rate       float64
+}
+
+type currencyConverter struct {
+	accessKey string
+	cache     map[string]map[string]cacheItem
+}
+
+func NewCurrencyConverter(accessKey string) *currencyConverter {
+	cache := make(map[string]map[string]cacheItem)
+
+	return &currencyConverter{
+		accessKey: accessKey,
+		cache:     cache,
+	}
+}
 
 // {"rates":{"CAD":1.3259376651},"date":"2019-03-19","base":"USD"}
 type CurrencyConversionResponse struct {
-	Date  string
-	Base  string
-	Rates map[string]float64
+	Date      string
+	Timestamp int
+	Base      string
+	Rates     map[string]float64
 }
 
-func conversionRate(from, to string) (float64, error) {
+func (c *currencyConverter) conversionRate(from, to string) (float64, error) {
 	// latest query https://api.exchangeratesapi.io/latest?symbols=USD,CAD&base=USD
 	// support for history queries...
 	// https://api.exchangeratesapi.io/history?start_at=2018-01-01&end_at=2018-01-02&symbols=USD,GBP&base=USD
-	conversionString := fmt.Sprintf("%s,%s", strings.ToUpper(from), strings.ToUpper(to))
+	// newest plan, query /latest and use the constant base to cache all conversions
+
+	cacheRate, err := c.getRateFromCache(from, to)
+	if err == nil {
+		return cacheRate, nil
+	}
 
 	req, err := http.NewRequest("GET", CurrencyConversionEndpoint+"/latest", nil)
 	if err != nil {
@@ -29,8 +54,7 @@ func conversionRate(from, to string) (float64, error) {
 	}
 
 	q := req.URL.Query()
-	q.Add("base", from)
-	q.Add("symbols", conversionString)
+	q.Add("access_key", c.accessKey)
 	req.URL.RawQuery = q.Encode()
 
 	rs, err := http.DefaultClient.Do(req)
@@ -46,14 +70,43 @@ func conversionRate(from, to string) (float64, error) {
 	}
 
 	var currencyConversionResponse CurrencyConversionResponse
+
 	err = json.Unmarshal(bodyBytes, &currencyConversionResponse)
 	if err != nil {
 		return 0, err
 	}
 
-	if rate, ok := currencyConversionResponse.Rates[to]; ok {
-		return rate, nil
+	cacheExpiry := time.Now().Truncate(24 * time.Hour).Add(24 * time.Hour)
+
+	for dest, destRate := range currencyConversionResponse.Rates {
+		for src, srcRate := range currencyConversionResponse.Rates {
+			if _, ok := c.cache[dest]; !ok {
+				c.cache[dest] = map[string]cacheItem{}
+			}
+
+			c.cache[dest][src] = cacheItem{
+				rate:       srcRate / destRate,
+				expiration: cacheExpiry,
+			}
+		}
 	}
 
-	return 0, fmt.Errorf("Invalid currency")
+	return c.getRateFromCache(from, to)
+}
+
+func (c *currencyConverter) getRateFromCache(from, to string) (float64, error) {
+	fromCache, ok := c.cache[from]
+	if !ok {
+		return 0, fmt.Errorf("unable to find conversion from %s to %s", from, to)
+	}
+	item, ok := fromCache[to]
+	if !ok {
+		return 0, fmt.Errorf("unable to find conversion from %s to %s", from, to)
+	}
+
+	if time.Now().After(item.expiration) {
+		return 0, fmt.Errorf("item in currency cache expired")
+	}
+
+	return item.rate, nil
 }
