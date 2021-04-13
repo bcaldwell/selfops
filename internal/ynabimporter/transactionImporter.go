@@ -68,7 +68,7 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 		}
 	}
 
-	i := financialimporter.NewTransactionImporter(importer.db, transactions, budget.CalculatedFields, budget.Currency, currencies, importAfterDate, config.CurrentYnabConfig().SQL.TransactionsTable)
+	i := financialimporter.NewTransactionImporter(importer.db, importer.currencyConverter, transactions, budget.CalculatedFields, budget.Currency, currencies, importAfterDate, config.CurrentYnabConfig().SQL.TransactionsTable)
 
 	written, err := i.Import()
 	if err != nil {

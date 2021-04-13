@@ -6,12 +6,13 @@ import (
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"github.com/bcaldwell/selfops/pkg/financialimporter"
 	"github.com/davidsteinsland/ynab-go/ynab"
 )
 
 type ImportYNABRunner struct {
 	ynabClient        *ynab.Client
-	currencyConverter *currencyConverter
+	currencyConverter *financialimporter.CurrencyConverter
 	db                *sql.DB
 	budgets           map[string]ynab.BudgetDetail
 	categories        map[string]map[string]category
@@ -35,7 +36,7 @@ func NewImportYNABRunner() (*ImportYNABRunner, error) {
 
 	return &ImportYNABRunner{
 		ynabClient:        ynabClient,
-		currencyConverter: NewCurrencyConverter(config.CurrentExchangeRateAPISecrets().AccessKey),
+		currencyConverter: financialimporter.NewCurrencyConverter(config.CurrentExchangeRateAPISecrets().AccessKey),
 		db:                db,
 		budgets:           make(map[string]ynab.BudgetDetail),
 		categories:        make(map[string]map[string]category),
@@ -85,10 +86,12 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		if err != nil {
 			return err
 		}
+
 		err = importer.importAccounts(b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}
+
 		err = importer.importBudgets(b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
@@ -99,6 +102,7 @@ func (importer *ImportYNABRunner) importYNAB() error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("2")
 
 	return nil
 }
@@ -140,7 +144,7 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 				continue
 			}
 
-			conf.Budgets[i].Conversions[currency], err = importer.currencyConverter.conversionRate(conf.Budgets[i].Currency, currency)
+			conf.Budgets[i].Conversions[currency], err = importer.currencyConverter.ConversionRate(conf.Budgets[i].Currency, currency)
 			if err != nil {
 				return err
 			}

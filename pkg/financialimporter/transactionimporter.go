@@ -29,9 +29,10 @@ var baseTransactionsSQLSchema = map[string]string{
 
 // http://www.postgresqltutorial.com/postgresql-array/
 
-func NewTransactionImporter(db *sql.DB, transactions []Transaction, calculatedFields []config.CalculatedField, transactionCurrency string, currencies []string, importAfterDate time.Time, sqlTable string) FinancialImporter {
+func NewTransactionImporter(db *sql.DB, currencyConverter *CurrencyConverter, transactions []Transaction, calculatedFields []config.CalculatedField, transactionCurrency string, currencies []string, importAfterDate time.Time, sqlTable string) FinancialImporter {
 	return &TransactionImporter{
 		db:                  db,
+		currencyConverter:   currencyConverter,
 		calculatedFields:    calculatedFields,
 		transactions:        transactions,
 		transactionCurrency: transactionCurrency,
@@ -43,6 +44,7 @@ func NewTransactionImporter(db *sql.DB, transactions []Transaction, calculatedFi
 
 type TransactionImporter struct {
 	db                  *sql.DB
+	currencyConverter   *CurrencyConverter
 	calculatedFields    []config.CalculatedField
 	transactions        []Transaction
 	importAfterDate     time.Time
@@ -55,7 +57,7 @@ type TransactionImporter struct {
 func (importer *TransactionImporter) Import() (int, error) {
 	var err error
 
-	importer.currencyConversions, err = generateCurrencyConversions(importer.transactionCurrency, importer.currencies)
+	importer.currencyConversions, err = generateCurrencyConversions(importer.currencyConverter, importer.transactionCurrency, importer.currencies)
 	if err != nil {
 		return 0, err
 	}
