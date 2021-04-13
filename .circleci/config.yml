@@ -14,30 +14,17 @@ jobs:
           name: Build and pushing docker image
           command: ci-scripts docker/build_and_push_image --docker-images-dockerRepo benjamincaldwell/selfops
 
+
   deploy:
     docker:
-      - image: benjamincaldwell/ci-scripts
-
-    environment:
-      CI_SCRIPTS_CONFIG: ./.circleci/ci_scripts.yml
+      - image: cimg/base:2020.01
 
     steps:
-      - checkout
-      - add_ssh_keys:
-          fingerprints:
-            # k8s cluster
-            - "46:38:75:f2:09:9f:c5:8b:84:32:4f:02:66:c6:5c:6b"
-            # github deploy key
-            - "b4:db:e5:d9:77:38:e8:0d:18:32:60:2e:ec:44:e4:5c"
-
       - run:
-          name: "Setup custom environment variables"
+          name: Updating docker image in k8s-config
           command: |
-            echo 'export DOCKER_IMAGE_DEPLOY_TAG="${CIRCLE_SHA1}"' >> $BASH_ENV
+            curl -H "Authorization: token $GITHUB_TOKEN" -H 'Accept: application/vnd.github.v3.raw' https://api.github.com/repos/bcaldwell/k8s-config/contents/scripts/update_docker_image.sh | bash /dev/stdin selfops/selfops ${CIRCLE_SHA1}
 
-      - run:
-          name: Deploying
-          command: ci-scripts kubernetes/deploy
 
 workflows:
   version: 2
@@ -50,4 +37,4 @@ workflows:
           filters:
             branches:
               only: master
-          context: kubernetes
+          context: bot-github

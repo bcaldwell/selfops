@@ -29,11 +29,13 @@ spec:
           command:
             - ./selfops
             - ynab
-          
           env:
             - name: IMPORTERS_EJSON_SECRET_KEY
               value: /var/run/secrets/ejson/ejson-key
-          
+            {{- range $key, $value := .Values.env }}
+            - name: "{{ $key }}"
+              value: "{{ $value }}"
+            {{- end }}
           volumeMounts:
             - name: config-volume
               mountPath: /selfops/config.yml

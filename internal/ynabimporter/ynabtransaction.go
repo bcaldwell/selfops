@@ -111,7 +111,7 @@ func (t *YnabSubTransaction) CategoryGroup() string {
 }
 
 func (t *YnabSubTransaction) Memo() string {
-	if t.SubTransaction.Memo == nil {
+	if t.SubTransaction.Memo == nil || *t.SubTransaction.Memo == "" {
 		return t.Parent.Memo()
 	}
 
