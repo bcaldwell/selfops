@@ -102,7 +102,6 @@ func (importer *ImportYNABRunner) importYNAB() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("2")
 
 	return nil
 }

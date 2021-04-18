@@ -136,7 +136,7 @@ func (t *YnabSubTransaction) TransactionType() financialimporter.TransactionType
 }
 
 func (t *YnabSubTransaction) Tags() []string {
-	return append(tagsList(t.Parent.Regex, t.Parent.Memo()), tagsList(t.Parent.Regex, t.Memo())...) 
+	return mergeListUnique(tagsList(t.Parent.Regex, t.Parent.Memo()), tagsList(t.Parent.Regex, t.Memo()))
 }
 
 func (t *YnabSubTransaction) HasSubTransactions() bool {
@@ -166,4 +166,21 @@ func tagsList(regex *regexp.Regexp, memo string) []string {
 		}
 	}
 	return tags
+}
+
+func mergeListUnique(a, b []string) []string {
+	for _, item := range b {
+		a = appendIfMissing(a, item)
+	}
+
+	return a
+}
+
+func appendIfMissing(slice []string, i string) []string {
+	for _, ele := range slice {
+		if ele == i {
+			return slice
+		}
+	}
+	return append(slice, i)
 }
