@@ -136,7 +136,7 @@ func (t *YnabSubTransaction) TransactionType() financialimporter.TransactionType
 }
 
 func (t *YnabSubTransaction) Tags() []string {
-	return tagsList(t.Parent.Regex, t.Memo())
+	return append(tagsList(t.Parent.Regex, t.Parent.Memo()), tagsList(t.Parent.Regex, t.Memo())...) 
 }
 
 func (t *YnabSubTransaction) HasSubTransactions() bool {
