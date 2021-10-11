@@ -1,9 +1,24 @@
 version: 2
 jobs:
-  release-docker:
+  release-docker-amd:
     docker:
       - image: benjamincaldwell/ci-scripts
+    working_directory: /go/src/github.com/bcaldwell/ci-scripts
 
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run:
+          name: Build and pushing docker image
+          command: ci-scripts docker/build_and_push_image --docker-images-dockerRepo benjamincaldwell/selfops --
+          environment:
+            DOCKER_IMAGE_PLATFORM: "linux/amd64"
+
+  release-docker-arm:
+    docker:
+      - image: benjamincaldwell/ci-scripts
+    resource_class: arm.medium
     working_directory: /go/src/github.com/bcaldwell/ci-scripts
 
     steps:
@@ -13,7 +28,8 @@ jobs:
       - run:
           name: Build and pushing docker image
           command: ci-scripts docker/build_and_push_image --docker-images-dockerRepo benjamincaldwell/selfops
-
+          environment:
+            DOCKER_IMAGE_PLATFORM: "linux/arm64,linux/arm/v7"
 
   deploy:
     docker:
@@ -25,15 +41,16 @@ jobs:
           command: |
             curl -H "Authorization: token $GITHUB_TOKEN" -H 'Accept: application/vnd.github.v3.raw' https://api.github.com/repos/bcaldwell/k8s-config/contents/scripts/update_docker_image.sh | bash /dev/stdin selfops/selfops ${CIRCLE_SHA1}
 
-
 workflows:
   version: 2
   build_and_deploy:
     jobs:
-      - release-docker
+      - release-docker-amd
+      - release-docker-arm
       - deploy:
           requires:
-            - release-docker
+            - release-docker-amd
+            - release-docker-arm
           filters:
             branches:
               only: master
