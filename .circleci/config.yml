@@ -1,9 +1,9 @@
 version: 2
 jobs:
-  release-docker-amd:
+  release-docker:
     docker:
       - image: benjamincaldwell/ci-scripts
-    working_directory: /go/src/github.com/bcaldwell/ci-scripts
+    working_directory: /go/src/github.com/bcaldwell/selfops
 
     steps:
       - checkout
@@ -13,22 +13,7 @@ jobs:
           name: Build and pushing docker image
           command: ci-scripts docker/build_and_push_image --docker-images-dockerRepo benjamincaldwell/selfops --
           environment:
-            DOCKER_IMAGE_PLATFORM: "linux/amd64"
-
-  release-docker-arm:
-    machine:
-      image: ubuntu-2004:202101-01
-    resource_class: arm.medium
-    working_directory: /go/src/github.com/bcaldwell/ci-scripts
-
-    steps:
-      - checkout
-      # - run:
-      # - run:
-      #     name: Build and pushing docker image
-      #     command: ci-scripts docker/build_and_push_image --docker-images-dockerRepo benjamincaldwell/selfops
-      #     environment:
-      #       DOCKER_IMAGE_PLATFORM: "linux/arm64,linux/arm/v7"
+            DOCKER_IMAGE_PLATFORM: "linux/amd64,linux/arm64"
 
   deploy:
     docker:
@@ -44,12 +29,10 @@ workflows:
   version: 2
   build_and_deploy:
     jobs:
-      - release-docker-amd
-      - release-docker-arm
+      - release-docker
       - deploy:
           requires:
-            - release-docker-amd
-            - release-docker-arm
+            - release-docker
           filters:
             branches:
               only: master
