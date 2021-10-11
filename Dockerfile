@@ -3,7 +3,7 @@ FROM golang:1.17 AS builder
 WORKDIR $GOPATH/src/github.com/bcaldwell/selfops
 
 COPY . ./
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o /selfops .
+RUN go build -o /selfops .
 
 FROM alpine
 RUN apk update && apk add ca-certificates tzdata && rm -rf /var/cache/apk/*
