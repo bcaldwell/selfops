@@ -7,6 +7,7 @@ import (
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"k8s.io/klog"
 )
 
 var baseNetworthSqlSchema = map[string]string{
@@ -66,7 +67,7 @@ func (importer *ImportYNABRunner) importNetworth(budgets []config.Budget, curren
 		return fmt.Errorf("Failed to write net worth to db: %v", err)
 	}
 
-	fmt.Printf("Wrote net worth to sql\n")
+	klog.Infof("Wrote net worth to sql\n")
 
 	return nil
 }

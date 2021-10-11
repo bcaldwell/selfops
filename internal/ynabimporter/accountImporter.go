@@ -8,6 +8,7 @@ import (
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"k8s.io/klog"
 )
 
 var baseAccountsSqlSchema = map[string]string{
@@ -74,7 +75,7 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 		return fmt.Errorf("Error writing accounts to sql: %s", err.Error())
 	}
 
-	fmt.Printf("Wrote %d accounts to sql from budget %s\n", len(accounts), budget.Name)
+	klog.Infof("Wrote %d accounts to sql from budget %s\n", len(accounts), budget.Name)
 
 	return nil
 }

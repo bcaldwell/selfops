@@ -6,6 +6,7 @@ import (
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"k8s.io/klog"
 )
 
 var baseBudgetSQLSchema = map[string]string{
@@ -59,15 +60,14 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 				// convert budgeted
 				convertedBudgeted := Round(budgeted*budget.Conversions[currency], 0.01)
 				row[currency] = strconv.FormatFloat(convertedBudgeted, 'f', 2, 64)
-				
+
 				// convert activity
 				convertedActivity := Round(activity*budget.Conversions[currency], 0.01)
-				row["activity_" + currency] = strconv.FormatFloat(convertedActivity, 'f', 2, 64)
-				
-				
+				row["activity_"+currency] = strconv.FormatFloat(convertedActivity, 'f', 2, 64)
+
 				// convert balance
 				convertedBalance := Round(balance*budget.Conversions[currency], 0.01)
-				row["balance_" + currency] = strconv.FormatFloat(convertedBalance, 'f', 2, 64)
+				row["balance_"+currency] = strconv.FormatFloat(convertedBalance, 'f', 2, 64)
 			}
 
 			for _, field := range budget.CalculatedFields {
@@ -88,7 +88,7 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 		return fmt.Errorf("Failed to write budgets to db: %v", err)
 	}
 
-	fmt.Printf("Wrote %v budgets for %s to sql\n", len(sqlRecords), budget.Name)
+	klog.Infof("Wrote %v budgets for %s to sql\n", len(sqlRecords), budget.Name)
 
 	return nil
 }
@@ -128,8 +128,8 @@ func (importer *ImportYNABRunner) createBudgetSQLSchema(calculatedFields []confi
 
 	for _, currency := range config.CurrentYnabConfig().Currencies {
 		schema[currency] = "float8"
-		schema["activity_" + currency] = "float8"
-		schema["balance_" + currency] = "float8"
+		schema["activity_"+currency] = "float8"
+		schema["balance_"+currency] = "float8"
 	}
 
 	return schema

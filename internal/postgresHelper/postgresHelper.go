@@ -7,6 +7,7 @@ import (
 
 	"github.com/bcaldwell/selfops/internal/config"
 	_ "github.com/lib/pq"
+	"k8s.io/klog"
 )
 
 func CreatePostgresClient(dbname string) (*sql.DB, error) {
@@ -15,7 +16,6 @@ func CreatePostgresClient(dbname string) (*sql.DB, error) {
 		databaselessConnStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 			config.CurrentSqlSecrets().SqlHost, config.CurrentSqlSecrets().SqlUsername, config.CurrentSqlSecrets().SqlPassword, "postgres")
 		db, err := sql.Open("postgres", databaselessConnStr)
-
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create db for databaseless connection: %s", err)
 		}
@@ -28,7 +28,7 @@ func CreatePostgresClient(dbname string) (*sql.DB, error) {
 
 		// next meaning there is a row, all we care about is if there is a row
 		if !rows.Next() {
-			fmt.Printf("Creating database %s in postgres database\n", config.CurrentYnabConfig().SQL.YnabDatabase)
+			klog.Infof("Creating database %s in postgres database\n", config.CurrentYnabConfig().SQL.YnabDatabase)
 			_, err := db.Exec("CREATE DATABASE " + config.CurrentYnabConfig().SQL.YnabDatabase)
 			if err != nil {
 				return nil, err
@@ -74,7 +74,6 @@ CREATE TABLE "public"."%s" (
 }
 
 func DropTable(db *sql.DB, tableName string) error {
-
 	dropStr := fmt.Sprintf("DROP TABLE IF EXISTS %s;", tableName)
 	_, err := db.Exec(dropStr)
 	return err

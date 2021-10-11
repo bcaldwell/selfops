@@ -8,14 +8,17 @@ import (
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresHelper"
 	"github.com/bcaldwell/selfops/pkg/financialimporter"
+	"k8s.io/klog"
 )
 
-type TransactionType string
-type category struct {
-	Name  string
-	Group string
-	Id    string
-}
+type (
+	TransactionType string
+	category        struct {
+		Name  string
+		Group string
+		Id    string
+	}
+)
 
 var baseTransactionsSqlSchema = map[string]string{
 	"transactionDate":  "timestamp",
@@ -75,7 +78,7 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 		return err
 	}
 
-	fmt.Printf("Wrote %d transactions to sql from budget %s\n", written, budget.Name)
+	klog.Infof("Wrote %d transactions to sql from budget %s\n", written, budget.Name)
 
 	return nil
 }
