@@ -1,35 +1,39 @@
 package financialimporter
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"github.com/bcaldwell/selfops/internal/postgresutils"
+	"github.com/uptrace/bun"
 )
 
-var baseTransactionsSQLSchema = map[string]string{
-	"transactionDate":  "timestamp",
-	"transactionMonth": "timestamp",
-	"category":         "varchar",
-	"categoryGroup":    "varchar",
-	"payee":            "varchar",
-	"account":          "varchar",
-	"memo":             "text",
-	"currency":         "varchar",
-	"amount":           "float8",
-	"transactionType":  "varchar",
-	"tags":             "varchar[]",
-	"updatedAt":        "timestamp",
+type SQLTransaction struct {
+	bun.BaseModel    `bun:"table:transactions"`
+	ID               int64  `bun:",pk,autoincrement"`
+	Key              string `bun:",pk,unique"`
+	TransactionDate  time.Time
+	TransactionMonth time.Time
+	Category         string
+	CategoryGroup    string
+	Payee            string
+	Account          string
+	Memo             string `bun:"type:text"`
+	Currency         string
+	Amount           float64
+	USD              float64
+	CAD              float64
+	TransactionType  string
+	Tags             []string               `bun:",array"`
+	Fields           map[string]interface{} `bun:"type:jsonb"`
+	UpdatedAt        time.Time
 }
 
-// http://www.postgresqltutorial.com/postgresql-array/
-
-func NewTransactionImporter(db *sql.DB, currencyConverter *CurrencyConverter, transactions []Transaction, calculatedFields []config.CalculatedField, transactionCurrency string, currencies []string, importAfterDate time.Time, sqlTable string) FinancialImporter {
+func NewTransactionImporter(db *bun.DB, currencyConverter *CurrencyConverter, transactions []Transaction, calculatedFields []config.CalculatedField, transactionCurrency string, currencies []string, importAfterDate time.Time, sqlTable string) FinancialImporter {
 	return &TransactionImporter{
 		db:                  db,
 		currencyConverter:   currencyConverter,
@@ -43,7 +47,7 @@ func NewTransactionImporter(db *sql.DB, currencyConverter *CurrencyConverter, tr
 }
 
 type TransactionImporter struct {
-	db                  *sql.DB
+	db                  *bun.DB
 	currencyConverter   *CurrencyConverter
 	calculatedFields    []config.CalculatedField
 	transactions        []Transaction
@@ -55,7 +59,12 @@ type TransactionImporter struct {
 }
 
 func (importer *TransactionImporter) Import() (int, error) {
-	var err error
+	model := (*SQLTransaction)(nil)
+	tableName := config.CurrentYnabConfig().SQL.TransactionsTable
+	_, err := importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
+	if err != nil {
+		return 0, err
+	}
 
 	importer.currencyConversions, err = generateCurrencyConversions(importer.currencyConverter, importer.transactionCurrency, importer.currencies)
 	if err != nil {
@@ -65,7 +74,7 @@ func (importer *TransactionImporter) Import() (int, error) {
 	// sqlRecords holds a record(map) representing the sql rows to be added
 	// It will be roughly the size of importer.transactions + number of sub transactions
 	// set the initial size to 0 so append works but set cap to a good guess
-	sqlRecords := make([]map[string]string, 0, len(importer.transactions))
+	sqlRecords := make([]SQLTransaction, 0, len(importer.transactions))
 
 	for _, transaction := range importer.transactions {
 		// check if transaction is before cutoff date
@@ -90,14 +99,20 @@ func (importer *TransactionImporter) Import() (int, error) {
 					return 0, err
 				}
 
-				sqlRecords = append(sqlRecords, sqlRow)
+				sqlRecords = append(sqlRecords, *sqlRow)
 			}
 		} else {
-			sqlRecords = append(sqlRecords, sqlRow)
+			sqlRecords = append(sqlRecords, *sqlRow)
 		}
 	}
 
-	err = postgresHelper.InsertRecords(importer.db, importer.sqlTable, sqlRecords)
+	_, err = importer.db.NewInsert().
+		Model(&sqlRecords).
+		ModelTableExpr(tableName).
+		On("CONFLICT (key) DO UPDATE").
+		Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
+		Exec(context.Background())
+
 	if err != nil {
 		return 0, fmt.Errorf("error writing to sql: %w", err)
 	}
@@ -105,7 +120,7 @@ func (importer *TransactionImporter) Import() (int, error) {
 	return len(sqlRecords), nil
 }
 
-func (importer *TransactionImporter) createSQLForTransaction(transaction Transaction) (map[string]string, error) {
+func (importer *TransactionImporter) createSQLForTransaction(transaction Transaction) (*SQLTransaction, error) {
 	amount := transaction.Amount()
 
 	t, err := time.Parse("2006-01-02", transaction.Date())
@@ -115,39 +130,31 @@ func (importer *TransactionImporter) createSQLForTransaction(transaction Transac
 
 	transactionMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
 
-	sqlRow := map[string]string{
-		"category":         transaction.Category(),
-		"categoryGroup":    transaction.CategoryGroup(),
-		"payee":            transaction.Payee(),
-		"account":          transaction.Account(),
-		"memo":             transaction.Memo(),
-		"currency":         importer.transactionCurrency,
-		"amount":           strconv.FormatFloat(amount, 'f', 2, 64),
-		"transactionType":  transaction.TransactionType().String(),
-		"transactionMonth": transactionMonth.Format("2006-01-02"),
+	sqlRow := SQLTransaction{
+		Key:              transaction.IndexKey(),
+		Category:         transaction.Category(),
+		CategoryGroup:    transaction.CategoryGroup(),
+		Payee:            transaction.Payee(),
+		Account:          transaction.Account(),
+		Memo:             transaction.Memo(),
+		Currency:         importer.transactionCurrency,
+		Amount:           amount,
+		USD:              Round(amount*importer.currencyConversions["USD"], 0.01),
+		CAD:              Round(amount*importer.currencyConversions["CAD"], 0.01),
+		TransactionType:  transaction.TransactionType().String(),
+		TransactionMonth: transactionMonth,
+		TransactionDate:  t,
+		UpdatedAt:        time.Now(),
+		Fields:           make(map[string]interface{}),
 	}
 
 	for _, field := range importer.calculatedFields {
-		sqlRow[field.Name] = strconv.FormatBool(calculateField(field, transaction))
+		sqlRow.Fields[field.Name] = strconv.FormatBool(calculateField(field, transaction))
 	}
 
-	memoTags := transaction.Tags()
+	sqlRow.Tags = transaction.Tags()
 
-	if len(memoTags) != 0 {
-		sqlRow["tags"] = fmt.Sprintf("{\"%s\"}", strings.Join(memoTags, "\",\""))
-	} else {
-		sqlRow["tags"] = "{}"
-	}
-
-	sqlRow["transactionDate"] = transaction.Date()
-	sqlRow["updatedAt"] = time.Now().Format(time.UnixDate)
-
-	for _, currency := range importer.currencies {
-		value := Round(amount*importer.currencyConversions[currency], 0.01)
-		sqlRow[currency] = strconv.FormatFloat(value, 'f', 2, 64)
-	}
-
-	return sqlRow, nil
+	return &sqlRow, nil
 }
 
 func calculateField(field config.CalculatedField, transaction Transaction) bool {
@@ -170,40 +177,6 @@ func stringInSlice(a string, list []string) bool {
 	}
 
 	return false
-}
-
-func (importer *TransactionImporter) CreateOrUpdateSQLTable() error {
-	err := postgresHelper.CreateTable(importer.db, importer.sqlTable, importer.createTransactionsSQLSchema())
-	if err != nil {
-		return fmt.Errorf("error creating table: %s", err)
-	}
-
-	return nil
-}
-
-func (importer *TransactionImporter) DropSQLTable() error {
-	err := postgresHelper.DropTable(importer.db, importer.sqlTable)
-	if err != nil {
-		return fmt.Errorf("error dropping table: %s", err)
-	}
-
-	return err
-}
-
-func (importer *TransactionImporter) createTransactionsSQLSchema() map[string]string {
-	schema := baseTransactionsSQLSchema
-
-	for _, field := range importer.calculatedFields {
-		if _, ok := schema[field.Name]; !ok {
-			schema[field.Name] = "boolean"
-		}
-	}
-
-	for _, currency := range importer.currencies {
-		schema[currency] = "float8"
-	}
-
-	return schema
 }
 
 func Round(x, unit float64) float64 {

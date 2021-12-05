@@ -1,21 +1,27 @@
 package ynabimporter
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 
 	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"github.com/bcaldwell/selfops/internal/postgresutils"
 	"github.com/bcaldwell/selfops/pkg/financialimporter"
 	"github.com/davidsteinsland/ynab-go/ynab"
+	"github.com/uptrace/bun"
 )
 
 type ImportYNABRunner struct {
 	ynabClient        *ynab.Client
 	currencyConverter *financialimporter.CurrencyConverter
-	db                *sql.DB
+	db                *bun.DB
 	budgets           map[string]ynab.BudgetDetail
 	categories        map[string]map[string]category
+}
+
+type LastSeen struct {
+	Endpoint string
+	LastSeen string
 }
 
 func (importer *ImportYNABRunner) Run() error {
@@ -29,7 +35,7 @@ func (importer *ImportYNABRunner) Close() error {
 func NewImportYNABRunner() (*ImportYNABRunner, error) {
 	ynabClient := ynab.NewDefaultClient(config.CurrentYnabSecrets().YnabAccessToken)
 
-	db, err := postgresHelper.CreatePostgresClient(config.CurrentYnabConfig().SQL.YnabDatabase)
+	db, err := postgresutils.CreatePostgresClient(config.CurrentYnabConfig().SQL.YnabDatabase)
 	if err != nil {
 		return nil, fmt.Errorf("Error connecting to postgres DB: %s", err)
 	}
@@ -71,12 +77,11 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		}
 	}
 
-	err = importer.recreateTransactionTable()
 	if err != nil {
 		return err
 	}
 
-	err = importer.recreateBudgetTable(config.CurrentYnabConfig().Budgets[0].CalculatedFields)
+	_, err = importer.db.NewCreateTable().Model(&LastSeen{}).IfNotExists().Exec(context.Background())
 	if err != nil {
 		return err
 	}
@@ -153,16 +158,14 @@ func (importer *ImportYNABRunner) detectBudgetIDs(conf *config.YnabConfig) error
 }
 
 func (importer *ImportYNABRunner) deleteRowsByDate(table string, date string, filters map[string]string) error {
-	queryString := fmt.Sprintf("DELETE FROM \"%s\" where date = $1", table)
-	i := 2
+	queryString := fmt.Sprintf("DELETE FROM \"%s\" where date = ?", table)
+	// i := 2
 
 	parmas := []interface{}{date}
 
 	for key, value := range filters {
-		queryString += fmt.Sprintf(" AND \"%v\" = $%v", key, i)
+		queryString += fmt.Sprintf(" AND \"%v\" = ?", key)
 		parmas = append(parmas, value)
-
-		i++
 	}
 
 	_, err := importer.db.Exec(queryString, parmas...)
