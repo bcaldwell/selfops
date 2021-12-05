@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"github.com/bcaldwell/selfops/internal/postgresutils"
 	"github.com/bcaldwell/selfops/pkg/financialimporter"
 	"github.com/davidsteinsland/ynab-go/ynab"
 	"github.com/uptrace/bun"
@@ -35,7 +35,7 @@ func (importer *ImportYNABRunner) Close() error {
 func NewImportYNABRunner() (*ImportYNABRunner, error) {
 	ynabClient := ynab.NewDefaultClient(config.CurrentYnabSecrets().YnabAccessToken)
 
-	db, err := postgresHelper.CreatePostgresClient(config.CurrentYnabConfig().SQL.YnabDatabase)
+	db, err := postgresutils.CreatePostgresClient(config.CurrentYnabConfig().SQL.YnabDatabase)
 	if err != nil {
 		return nil, fmt.Errorf("Error connecting to postgres DB: %s", err)
 	}
@@ -82,11 +82,6 @@ func (importer *ImportYNABRunner) importYNAB() error {
 	}
 
 	_, err = importer.db.NewCreateTable().Model(&LastSeen{}).IfNotExists().Exec(context.Background())
-	if err != nil {
-		return err
-	}
-
-	err = importer.recreateBudgetTable(config.CurrentYnabConfig().Budgets[0].CalculatedFields)
 	if err != nil {
 		return err
 	}

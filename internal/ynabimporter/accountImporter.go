@@ -1,33 +1,57 @@
 package ynabimporter
 
 import (
+	"context"
 	"fmt"
 	"math"
-	"strconv"
 	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"github.com/bcaldwell/selfops/internal/postgresutils"
+	"github.com/uptrace/bun"
 	"k8s.io/klog"
 )
 
-var baseAccountsSqlSchema = map[string]string{
-	"name":       "varchar",
-	"currency":   "varchar",
-	"budgetName": "varchar",
-	"onBudget":   "boolean",
-	"type":       "varchar",
-	"balance":    "varchar",
-	"date":       "timestamp",
+// INSERT INTO accounts
+// SELECT
+//     id,
+//     FORMAT('%s::%s::%s', to_char(date, 'MM-DD-YYYY'), "budgetName", name) as key,
+//     date,
+// 	name,
+// 	currency,
+// 	"budgetName" as budget_name,
+// 	"onBudget" as on_budget,
+// 	type,
+// 	balance,
+// 	"USD" as usd,
+// 	"CAD" as cad
+// FROM accounts_old;
+
+type SQLAccount struct {
+	bun.BaseModel `bun:"table:accounts"`
+	ID            int64  `bun:",pk,autoincrement"`
+	Key           string `bun:",pk,unique"`
+	Date          time.Time
+	Name          string
+	Currency      string
+	BudgetName    string
+	OnBudget      bool
+	Type          string
+	Balance       float64
+	USD           float64
+	CAD           float64
 }
 
 func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencies []string) error {
-	err := importer.createAccountsTable()
-	// if err != nil {
-	// 	return err
-	// }
+	model := (*SQLAccount)(nil)
+	tableName := config.CurrentYnabConfig().SQL.AccountsTable
+	// todo make this come from config
+	_, err := importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
+	if err != nil {
+		return err
+	}
 
-	sqlRecords := make([]map[string]interface{}, 0)
+	sqlRecords := make([]SQLAccount, 0)
 
 	currencyNetworths := make(map[string]float64)
 	for _, currency := range currencies {
@@ -36,13 +60,7 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 
 	accounts := importer.budgets[budget.ID].Accounts
 
-	date := time.Now().Format("01-02-2006")
-
-	err = importer.deleteRowsByDate(config.CurrentYnabConfig().SQL.AccountsTable, date, map[string]string{"budgetName": budget.Name})
-
-	if err != nil {
-		return fmt.Errorf("Error getting deleting old account records for %s: %s", date, err.Error())
-	}
+	date := time.Now().UTC().Truncate(24 * time.Hour)
 
 	for _, account := range accounts {
 		if account.Closed {
@@ -51,26 +69,28 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 
 		balance := float64(account.Balance) / 1000.0
 
-		row := map[string]interface{}{
-			"balance":    strconv.FormatFloat(balance, 'f', 2, 64),
-			"name":       account.Name,
-			"type":       account.Type,
-			"onBudget":   strconv.FormatBool(account.OnBudget),
-			"currency":   budget.Currency,
-			"budgetName": budget.Name,
-			"date":       date,
-		}
-
-		for _, currency := range currencies {
-			currencyBalance := Round(balance*budget.Conversions[currency], 0.01)
-			row[currency] = strconv.FormatFloat(currencyBalance, 'f', 2, 64)
-			currencyNetworths[currency] += currencyBalance
+		row := SQLAccount{
+			Key:        fmt.Sprintf("%s::%s::%s", date.Format("01-02-2006"), budget.Name, account.Name),
+			Balance:    balance,
+			USD:        Round(balance*budget.Conversions["USD"], 0.01),
+			CAD:        Round(balance*budget.Conversions["CAD"], 0.01),
+			Name:       account.Name,
+			Type:       account.Type,
+			OnBudget:   account.OnBudget,
+			Currency:   budget.Currency,
+			BudgetName: budget.Name,
+			Date:       date,
 		}
 
 		sqlRecords = append(sqlRecords, row)
 	}
 
-	err = postgresHelper.InsertRecords(importer.db, config.CurrentYnabConfig().SQL.AccountsTable, sqlRecords)
+	_, err = importer.db.NewInsert().
+		Model(&sqlRecords).
+		ModelTableExpr(tableName).
+		On("CONFLICT (key) DO UPDATE").
+		Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
+		Exec(context.Background())
 	if err != nil {
 		return fmt.Errorf("Error writing accounts to sql: %s", err.Error())
 	}
@@ -78,23 +98,6 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 	klog.Infof("Wrote %d accounts to sql from budget %s\n", len(accounts), budget.Name)
 
 	return nil
-}
-
-func (importer *ImportYNABRunner) createAccountsTable() error {
-	err := postgresHelper.CreateTable(importer.db.DB, config.CurrentYnabConfig().SQL.AccountsTable, importer.createAccountsSQLSchema())
-	if err != nil {
-		return fmt.Errorf("Error creating table: %s", err)
-	}
-	return nil
-}
-
-func (importer *ImportYNABRunner) createAccountsSQLSchema() map[string]string {
-	schema := baseAccountsSqlSchema
-
-	for _, currency := range config.CurrentYnabConfig().Currencies {
-		schema[currency] = "float8"
-	}
-	return schema
 }
 
 func Round(x, unit float64) float64 {

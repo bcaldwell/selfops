@@ -6,25 +6,13 @@ import (
 	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
+	"github.com/bcaldwell/selfops/internal/postgresutils"
 	"github.com/uptrace/bun"
 	"k8s.io/klog"
 )
 
-// var baseBudgetSQLSchema = map[string]string{
-// 	"ynabID":        "varchar",
-// 	"category":      "varchar",
-// 	"categoryGroup": "varchar",
-// 	"month":         "timestamp",
-// 	"name":          "varchar",
-// 	"currency":      "varchar",
-// 	"budgeted":      "float8",
-// 	"activity":      "float8",
-// 	"balance":       "float8",
-// 	"amount":        "float8",
-// }
-
 type SQLBudget struct {
-	bun.BaseModel
+	bun.BaseModel `bun:"table:budgets"`
 	ID            int64  `bun:",pk,autoincrement"`
 	Key           string `bun:",pk,unique"`
 	Category      string
@@ -47,7 +35,9 @@ type SQLBudget struct {
 
 func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies []string) error {
 	// todo make this come from config
-	_, err := importer.db.NewCreateTable().Model((*SQLBudget)(nil)).ModelTableExpr("budgets").IfNotExists().Exec(context.Background())
+	model := (*SQLBudget)(nil)
+	tableName := config.CurrentYnabConfig().SQL.BudgetsTable
+	_, err := importer.db.NewCreateTable().Model((*SQLBudget)(nil)).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
 	if err != nil {
 		return err
 	}
@@ -97,20 +87,6 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 				Fields:        make(map[string]interface{}),
 			}
 
-			// for _, currency := range currencies {
-			// 	// convert budgeted
-			// 	convertedBudgeted := Round(budgeted*budget.Conversions[currency], 0.01)
-			// 	row[currency] = strconv.FormatFloat(convertedBudgeted, 'f', 2, 64)
-
-			// 	// convert activity
-			// 	convertedActivity := Round(activity*budget.Conversions[currency], 0.01)
-			// 	row["activity_"+currency] = strconv.FormatFloat(convertedActivity, 'f', 2, 64)
-
-			// 	// convert balance
-			// 	convertedBalance := Round(balance*budget.Conversions[currency], 0.01)
-			// 	row["balance_"+currency] = strconv.FormatFloat(convertedBalance, 'f', 2, 64)
-			// }
-
 			for _, field := range budget.CalculatedFields {
 				calculateField := stringInSlice(category.Name, field.Category) || stringInSlice(categoryGroup, field.CategoryGroup)
 				if field.Inverted {
@@ -126,9 +102,9 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 
 	_, err = importer.db.NewInsert().
 		Model(&sqlRecords).
-		ModelTableExpr("budgets").
+		ModelTableExpr(tableName).
 		On("CONFLICT (key) DO UPDATE").
-		Set("category = EXCLUDED.category").
+		Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
 		Exec(context.Background())
 
 	klog.Infof("Wrote %v budgets for %s to sql\n", len(sqlRecords), budget.Name)
@@ -145,35 +121,3 @@ func stringInSlice(a string, list []string) bool {
 
 	return false
 }
-
-func (importer *ImportYNABRunner) recreateBudgetTable(calculatedFields []config.CalculatedField) error {
-	// err := postgresHelper.DropTable(importer.db.DB, config.CurrentYnabConfig().SQL.BudgetsTable)
-	// if err != nil {
-	// 	return fmt.Errorf("Error dropping table: %s", err)
-	// }
-
-	// err = postgresHelper.CreateTable(importer.db.DB, config.CurrentYnabConfig().SQL.BudgetsTable, importer.createBudgetSQLSchema(calculatedFields))
-	// if err != nil {
-	// 	return fmt.Errorf("Error creating table: %s", err)
-	// }
-
-	return nil
-}
-
-// func (importer *ImportYNABRunner) createBudgetSQLSchema(calculatedFields []config.CalculatedField) map[string]string {
-// 	schema := baseBudgetSQLSchema
-
-// 	for _, field := range calculatedFields {
-// 		if _, ok := schema[field.Name]; !ok {
-// 			schema[field.Name] = "boolean"
-// 		}
-// 	}
-
-// 	for _, currency := range config.CurrentYnabConfig().Currencies {
-// 		schema[currency] = "float8"
-// 		schema["activity_"+currency] = "float8"
-// 		schema["balance_"+currency] = "float8"
-// 	}
-
-// 	return schema
-// }

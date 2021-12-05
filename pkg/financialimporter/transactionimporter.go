@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/postgresHelper"
+	"github.com/bcaldwell/selfops/internal/postgresutils"
 	"github.com/uptrace/bun"
 )
 
@@ -59,11 +59,12 @@ type TransactionImporter struct {
 }
 
 func (importer *TransactionImporter) Import() (int, error) {
-	err := importer.MigrateSQLTable()
+	model := (*SQLTransaction)(nil)
+	tableName := config.CurrentYnabConfig().SQL.TransactionsTable
+	_, err := importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
 	if err != nil {
 		return 0, err
 	}
-	// var err error
 
 	importer.currencyConversions, err = generateCurrencyConversions(importer.currencyConverter, importer.transactionCurrency, importer.currencies)
 	if err != nil {
@@ -105,17 +106,13 @@ func (importer *TransactionImporter) Import() (int, error) {
 		}
 	}
 
-	// sqlRecords[0].BaseModel
-
 	_, err = importer.db.NewInsert().
 		Model(&sqlRecords).
+		ModelTableExpr(tableName).
 		On("CONFLICT (key) DO UPDATE").
-		Set("category = EXCLUDED.category").
+		Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
 		Exec(context.Background())
 
-	fmt.Println(importer.db.Dialect().Tables().ByName("transactions").FieldMap)
-
-	// err = postgresHelper.InsertRecords(importer.db, importer.sqlTable, sqlRecords)
 	if err != nil {
 		return 0, fmt.Errorf("error writing to sql: %w", err)
 	}
@@ -180,40 +177,6 @@ func stringInSlice(a string, list []string) bool {
 	}
 
 	return false
-}
-
-func (importer *TransactionImporter) MigrateSQLTable() error {
-	_, err := importer.db.NewCreateTable().Model((*SQLTransaction)(nil)).IfNotExists().Exec(context.Background())
-	return err
-	// err := importer.DropSQLTable()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// return importer.CreateOrUpdateSQLTable()
-}
-
-// func (importer *TransactionImporter) CreateOrUpdateSQLTable() error {
-// 	err := postgresHelper.CreateTable(importer.db.DB, importer.sqlTable, importer.createTransactionsSQLSchema())
-// 	if err != nil {
-// 		return fmt.Errorf("error creating table: %w", err)
-// 	}
-
-// 	_, err = importer.db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s(\"%s\")", importer.sqlTable+"_key", importer.sqlTable, "key"))
-// 	if err != nil {
-// 		return fmt.Errorf("failed to create unqiue index: %w", err)
-// 	}
-
-// 	return nil
-// }
-
-func (importer *TransactionImporter) DropSQLTable() error {
-	err := postgresHelper.DropTable(importer.db.DB, importer.sqlTable)
-	if err != nil {
-		return fmt.Errorf("error dropping table: %s", err)
-	}
-
-	return err
 }
 
 func Round(x, unit float64) float64 {
