@@ -2,8 +2,7 @@ package financialimporter
 
 type FinancialImporter interface {
 	Import() (int, error)
-	CreateOrUpdateSQLTable() error
-	DropSQLTable() error
+	MigrateSQLTable() error
 }
 
 type TransactionType int

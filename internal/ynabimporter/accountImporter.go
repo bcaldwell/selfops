@@ -27,7 +27,7 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 	// 	return err
 	// }
 
-	sqlRecords := make([]map[string]string, 0)
+	sqlRecords := make([]map[string]interface{}, 0)
 
 	currencyNetworths := make(map[string]float64)
 	for _, currency := range currencies {
@@ -51,7 +51,7 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 
 		balance := float64(account.Balance) / 1000.0
 
-		row := map[string]string{
+		row := map[string]interface{}{
 			"balance":    strconv.FormatFloat(balance, 'f', 2, 64),
 			"name":       account.Name,
 			"type":       account.Type,
@@ -81,7 +81,7 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 }
 
 func (importer *ImportYNABRunner) createAccountsTable() error {
-	err := postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.AccountsTable, importer.createAccountsSQLSchema())
+	err := postgresHelper.CreateTable(importer.db.DB, config.CurrentYnabConfig().SQL.AccountsTable, importer.createAccountsSQLSchema())
 	if err != nil {
 		return fmt.Errorf("Error creating table: %s", err)
 	}

@@ -1,12 +1,12 @@
 package ynabimporter
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/postgresHelper"
 	"github.com/bcaldwell/selfops/pkg/financialimporter"
 	"k8s.io/klog"
 )
@@ -20,21 +20,6 @@ type (
 	}
 )
 
-var baseTransactionsSqlSchema = map[string]string{
-	"transactionDate":  "timestamp",
-	"transactionMonth": "timestamp",
-	"category":         "varchar",
-	"categoryGroup":    "varchar",
-	"payee":            "varchar",
-	"account":          "varchar",
-	"memo":             "text",
-	"currency":         "varchar",
-	"amount":           "float8",
-	"transactionType":  "varchar",
-	"tags":             "varchar[]",
-	"updatedAt":        "timestamp",
-}
-
 var defaultRegex = "^[A-Za-z0-9]([A-Za-z0-9\\-\\_]+)?$"
 
 // http://www.postgresqltutorial.com/postgresql-array/
@@ -46,6 +31,12 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 	}
 
 	regex := regexp.MustCompile(regexPattern)
+
+	lastSeen := LastSeen{}
+	_, err := importer.db.NewSelect().Model(&lastSeen).Where("endpoint = ?", "transactions").Exec(context.Background())
+	if err != nil {
+		return err
+	}
 
 	// need to get transactions from transaction service to have the sub transaction data
 	ynabTransactions, err := importer.ynabClient.TransactionsService.List(budget.ID)
@@ -84,32 +75,52 @@ func (importer *ImportYNABRunner) importTransactions(budget config.Budget, curre
 }
 
 func (importer *ImportYNABRunner) recreateTransactionTable() error {
-	err := postgresHelper.DropTable(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable)
-	if err != nil {
-		return fmt.Errorf("Error dropping table: %s", err)
+	calculatedFields := make([]config.CalculatedField, 0)
+	foundKeys := make(map[string]bool)
+
+	for _, budget := range config.CurrentYnabConfig().Budgets {
+		for _, field := range budget.CalculatedFields {
+			if ok := foundKeys[field.Name]; ok {
+				continue
+			}
+
+			calculatedFields = append(calculatedFields, field)
+			foundKeys[field.Name] = true
+		}
 	}
 
-	err = postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable, importer.createTransactionsSQLSchema())
+	i := financialimporter.NewTransactionImporter(importer.db, importer.currencyConverter, nil, calculatedFields, "", config.CurrentYnabConfig().Currencies, time.Now(), config.CurrentYnabConfig().SQL.TransactionsTable)
+	err := i.MigrateSQLTable()
 	if err != nil {
-		return fmt.Errorf("Error creating table: %s", err)
+		return err
 	}
+
+	// err := postgresHelper.DropTable(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable)
+	// if err != nil {
+	// 	return fmt.Errorf("Error dropping table: %s", err)
+	// }
+
+	// err = postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.TransactionsTable, importer.createTransactionsSQLSchema())
+	// if err != nil {
+	// 	return fmt.Errorf("Error creating table: %s", err)
+	// }
 
 	return nil
 }
 
-func (importer *ImportYNABRunner) createTransactionsSQLSchema() map[string]string {
-	schema := baseTransactionsSqlSchema
+// func (importer *ImportYNABRunner) createTransactionsSQLSchema() map[string]string {
+// 	schema := baseTransactionsSqlSchema
 
-	for _, budget := range config.CurrentYnabConfig().Budgets {
-		for _, field := range budget.CalculatedFields {
-			if _, ok := schema[field.Name]; !ok {
-				schema[field.Name] = "boolean"
-			}
-		}
-	}
+// 	for _, budget := range config.CurrentYnabConfig().Budgets {
+// 		for _, field := range budget.CalculatedFields {
+// 			if _, ok := schema[field.Name]; !ok {
+// 				schema[field.Name] = "boolean"
+// 			}
+// 		}
+// 	}
 
-	for _, currency := range config.CurrentYnabConfig().Currencies {
-		schema[currency] = "float8"
-	}
-	return schema
-}
+// 	for _, currency := range config.CurrentYnabConfig().Currencies {
+// 		schema[currency] = "float8"
+// 	}
+// 	return schema
+// }

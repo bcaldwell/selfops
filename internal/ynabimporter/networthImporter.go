@@ -55,7 +55,7 @@ func (importer *ImportYNABRunner) importNetworth(budgets []config.Budget, curren
 		}
 	}
 
-	netWorthRow := make(map[string]string)
+	netWorthRow := make(map[string]interface{})
 	date := time.Now().Format("01-02-2006")
 	netWorthRow["date"] = date
 	for k, v := range currencyNetworths {
@@ -73,7 +73,7 @@ func (importer *ImportYNABRunner) importNetworth(budgets []config.Budget, curren
 }
 
 func (importer *ImportYNABRunner) createNetworthTable(budgets []config.Budget) error {
-	err := postgresHelper.CreateTable(importer.db, config.CurrentYnabConfig().SQL.NetworthTable, importer.createNetworthSQLSchema(budgets))
+	err := postgresHelper.CreateTable(importer.db.DB, config.CurrentYnabConfig().SQL.NetworthTable, importer.createNetworthSQLSchema(budgets))
 	if err != nil {
 		return fmt.Errorf("Error creating table: %s", err)
 	}
