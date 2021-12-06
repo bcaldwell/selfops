@@ -10,8 +10,8 @@ import (
 	"k8s.io/klog"
 )
 
-// INSERT INTO networth
-// SELECT id, date, "USD", "CAD", json_build_object('USD', json_build_object('cad', "USD_CAD", 'usd', "USD_USD"), 'CAD', json_build_object('cad', "CAD_CAD", 'usd', "CAD_USD"))
+// INSERT INTO networth(date, usd, cad, budget_breakdown)
+// SELECT date, "USD", "CAD", json_build_object('USD', json_build_object('cad', "USD_CAD", 'usd', "USD_USD"), 'CAD', json_build_object('cad', "CAD_CAD", 'usd', "CAD_USD"))
 // FROM networth_old;
 
 type SQLNetWorth struct {

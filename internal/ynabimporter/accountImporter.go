@@ -12,9 +12,8 @@ import (
 	"k8s.io/klog"
 )
 
-// INSERT INTO accounts
+// INSERT INTO accounts(key, date, name, currency, budget_name, on_budget, type, balance, usd, cad)
 // SELECT
-//     id,
 //     FORMAT('%s::%s::%s', to_char(date, 'MM-DD-YYYY'), "budgetName", name) as key,
 //     date,
 // 	name,

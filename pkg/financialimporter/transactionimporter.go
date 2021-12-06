@@ -61,7 +61,14 @@ type TransactionImporter struct {
 func (importer *TransactionImporter) Import() (int, error) {
 	model := (*SQLTransaction)(nil)
 	tableName := config.CurrentYnabConfig().SQL.TransactionsTable
-	_, err := importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
+
+	// easiest way to handle deleted transactions, with the speed at which it works not too bad
+	_, err := importer.db.NewDropTable().Model(model).ModelTableExpr(tableName).Exec(context.Background())
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
 	if err != nil {
 		return 0, err
 	}
