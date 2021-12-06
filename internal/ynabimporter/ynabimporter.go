@@ -3,6 +3,7 @@ package ynabimporter
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
 	"github.com/bcaldwell/selfops/internal/postgresutils"
@@ -85,6 +86,9 @@ func (importer *ImportYNABRunner) importYNAB() error {
 	if err != nil {
 		return err
 	}
+
+	i := financialimporter.NewTransactionImporter(importer.db, importer.currencyConverter, nil, nil, "", nil, time.Now(), config.CurrentYnabConfig().SQL.TransactionsTable)
+	i.Migrate()
 
 	for _, b := range config.CurrentYnabConfig().Budgets {
 		err = importer.importTransactions(b, config.CurrentYnabConfig().Currencies)

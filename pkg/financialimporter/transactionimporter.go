@@ -58,20 +58,29 @@ type TransactionImporter struct {
 	sqlTable            string
 }
 
-func (importer *TransactionImporter) Import() (int, error) {
+func (importer *TransactionImporter) Migrate() error {
 	model := (*SQLTransaction)(nil)
 	tableName := config.CurrentYnabConfig().SQL.TransactionsTable
 
 	// easiest way to handle deleted transactions, with the speed at which it works not too bad
 	_, err := importer.db.NewDropTable().Model(model).ModelTableExpr(tableName).Exec(context.Background())
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	_, err = importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
 	if err != nil {
-		return 0, err
+		return err
 	}
+
+	return nil
+}
+
+func (importer *TransactionImporter) Import() (int, error) {
+	var err error
+
+	model := (*SQLTransaction)(nil)
+	tableName := config.CurrentYnabConfig().SQL.TransactionsTable
 
 	importer.currencyConversions, err = generateCurrencyConversions(importer.currencyConverter, importer.transactionCurrency, importer.currencies)
 	if err != nil {

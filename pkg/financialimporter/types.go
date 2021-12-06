@@ -1,6 +1,7 @@
 package financialimporter
 
 type FinancialImporter interface {
+	Migrate() error
 	Import() (int, error)
 }
 
