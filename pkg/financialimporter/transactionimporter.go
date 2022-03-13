@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bcaldwell/selfops/internal/config"
@@ -58,19 +59,45 @@ type TransactionImporter struct {
 	sqlTable            string
 }
 
+// server will return that a transaction is deleted
+// {
+// 	"data": {
+// 	  "transactions": [
+// 		{
+// 		  "date": "2021-12-05",
+// 		  "amount": -1000,
+// 		  "memo": "TESTING",
+// 		  "cleared": "cleared",
+// 		  "approved": true,
+// 		  "flag_color": null,
+// 		  "account_name": "Cash",
+// 		  "payee_name": "Interest",
+// 		  "category_name": "Inflow: Ready to Assign",
+// 		  "transfer_account_id": null,
+// 		  "transfer_transaction_id": null,
+// 		  "matched_transaction_id": null,
+// 		  "import_id": null,
+// 		  "deleted": true,
+// 		  "subtransactions": []
+// 		}
+// 	  ],
+// 	  "server_knowledge": 50996
+// 	}
+//   }
+
 func (importer *TransactionImporter) Migrate() error {
 	model := (*SQLTransaction)(nil)
 	tableName := config.CurrentYnabConfig().SQL.TransactionsTable
 
 	// easiest way to handle deleted transactions, with the speed at which it works not too bad
 	_, err := importer.db.NewDropTable().Model(model).ModelTableExpr(tableName).Exec(context.Background())
-	if err != nil {
-		return err
+	if err != nil && !strings.Contains(err.Error(), fmt.Sprintf("ERROR: table \"%s\" does not exist (SQLSTATE=42P01)", tableName)) {
+		return fmt.Errorf("failed to drop %s table: %w", tableName, err)
 	}
 
 	_, err = importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create %s table: %w", tableName, err)
 	}
 
 	return nil
@@ -122,18 +149,36 @@ func (importer *TransactionImporter) Import() (int, error) {
 		}
 	}
 
-	_, err = importer.db.NewInsert().
-		Model(&sqlRecords).
-		ModelTableExpr(tableName).
-		On("CONFLICT (key) DO UPDATE").
-		Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
-		Exec(context.Background())
+	batchSize := config.CurrentYnabConfig().SQL.BatchSize
+	if batchSize == 0 {
+		batchSize = 1000
+	}
 
-	if err != nil {
-		return 0, fmt.Errorf("error writing to sql: %w", err)
+	for i := 0; i < len(sqlRecords); i += batchSize {
+		endIndex := min(len(sqlRecords), i+batchSize)
+
+		records := sqlRecords[i:endIndex]
+
+		_, err = importer.db.NewInsert().
+			Model(&records).
+			ModelTableExpr(tableName).
+			On("CONFLICT (key) DO UPDATE").
+			Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
+			Exec(context.Background())
+
+		if err != nil {
+			return 0, fmt.Errorf("error writing to sql, transaction batch start index %i: %w", i, err)
+		}
 	}
 
 	return len(sqlRecords), nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (importer *TransactionImporter) createSQLForTransaction(transaction Transaction) (*SQLTransaction, error) {

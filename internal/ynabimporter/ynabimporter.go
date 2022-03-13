@@ -88,7 +88,10 @@ func (importer *ImportYNABRunner) importYNAB() error {
 	}
 
 	i := financialimporter.NewTransactionImporter(importer.db, importer.currencyConverter, nil, nil, "", nil, time.Now(), config.CurrentYnabConfig().SQL.TransactionsTable)
-	i.Migrate()
+	err = i.Migrate()
+	if err != nil {
+		return err
+	}
 
 	for _, b := range config.CurrentYnabConfig().Budgets {
 		err = importer.importTransactions(b, config.CurrentYnabConfig().Currencies)

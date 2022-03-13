@@ -31,6 +31,7 @@ type YnabConfig struct {
 		AccountsTable     string
 		BudgetsTable      string
 		NetworthTable     string
+		BatchSize         int
 	}
 	Tags struct {
 		Enabled    bool

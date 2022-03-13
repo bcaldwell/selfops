@@ -100,16 +100,33 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 		}
 	}
 
-	_, err = importer.db.NewInsert().
-		Model(&sqlRecords).
-		ModelTableExpr(tableName).
-		On("CONFLICT (key) DO UPDATE").
-		Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
-		Exec(context.Background())
+	batchSize := config.CurrentYnabConfig().SQL.BatchSize
+	if batchSize == 0 {
+		batchSize = 1000
+	}
+
+	for i := 0; i < len(sqlRecords); i += batchSize {
+		endIndex := min(len(sqlRecords), i+batchSize)
+
+		records := sqlRecords[i:endIndex]
+		_, err = importer.db.NewInsert().
+			Model(&records).
+			ModelTableExpr(tableName).
+			On("CONFLICT (key) DO UPDATE").
+			Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
+			Exec(context.Background())
+	}
 
 	klog.Infof("Wrote %v budgets for %s to sql\n", len(sqlRecords), budget.Name)
 
 	return err
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func stringInSlice(a string, list []string) bool {
