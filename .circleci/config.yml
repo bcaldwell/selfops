@@ -15,15 +15,15 @@ jobs:
           environment:
             DOCKER_IMAGE_PLATFORM: "linux/amd64,linux/arm64"
 
-  # deploy:
-  #   docker:
-  #     - image: cimg/base:2020.01
+  deploy:
+    docker:
+      - image: cimg/base:latest
 
-  #   steps:
-  #     - run:
-  #         name: Updating docker image in k8s-config
-  #         command: |
-  #           curl -H "Authorization: token $GITHUB_TOKEN" -H 'Accept: application/vnd.github.v3.raw' https://api.github.com/repos/bcaldwell/k8s-config/contents/scripts/update_docker_image.sh | bash /dev/stdin selfops/selfops ${CIRCLE_SHA1}
+    steps:
+      - run:
+          name: Updating docker image in k8s-config
+          command: |
+            curl -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/${K8S_CONFIG_REPO}/actions/workflows/update-image.yaml/dispatches" -d '{"ref": "main", "inputs": {"repository": "benjamincaldwell/selfops", "tag": "'"${CIRCLE_SHA1}"'"}}'
 
 workflows:
   version: 2
@@ -31,10 +31,10 @@ workflows:
     jobs:
       - release-docker:
           context: docker
-      # - deploy:
-      #     requires:
-      #       - release-docker
-      #     filters:
-      #       branches:
-      #         only: master
-      #     context: bot-github
+      - deploy:
+          requires:
+            - release-docker
+          filters:
+            branches:
+              only: master
+          context: k8s-config-cd-trigger
