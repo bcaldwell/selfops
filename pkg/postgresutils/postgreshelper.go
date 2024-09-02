@@ -24,8 +24,14 @@ func CreatePostgresClient(dbname string) (*bun.DB, error) {
 			return nil, err
 		}
 
+		sqlHost := config.CurrentSecrets().SQL.SqlHost
+		// slightly silly logic to add port if missing
+		if !strings.Contains(sqlHost, ":") {
+			sqlHost += ":5432"
+		}
+
 		pgconn = pgdriver.NewConnector(
-			pgdriver.WithAddr(config.CurrentSqlSecrets().SqlHost),
+			pgdriver.WithAddr(sqlHost),
 			pgdriver.WithInsecure(true),
 			pgdriver.WithUser(config.CurrentSqlSecrets().SqlUsername),
 			pgdriver.WithPassword(config.CurrentSqlSecrets().SqlPassword),

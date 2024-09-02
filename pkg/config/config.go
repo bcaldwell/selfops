@@ -73,7 +73,7 @@ func readConfig(envName, filename string) (*Config, error) {
 		fmt.Printf("Reading config from environment variable %s\n", envName)
 		raw = []byte(rawEnv)
 	} else {
-		raw, err = ioutil.ReadFile(filename)
+		raw, err = os.ReadFile(filename)
 		if err != nil {
 			return nil, err
 		}
@@ -115,7 +115,7 @@ func readEjsonSecrets(filename string) (*Secrets, error) {
 	var err error
 
 	if ejsonKeyFile != "" {
-		ejsonKey, err = ioutil.ReadFile(ejsonKeyFile)
+		ejsonKey, err = os.ReadFile(ejsonKeyFile)
 		if err != nil {
 			return nil, err
 		}
