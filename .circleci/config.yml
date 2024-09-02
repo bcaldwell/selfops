@@ -17,7 +17,7 @@ jobs:
 
   deploy:
     docker:
-      - image: cimg/base:latest
+      - image: cimg/base:current
 
     steps:
       - run:
