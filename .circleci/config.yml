@@ -2,16 +2,13 @@ version: 2
 jobs:
   release-docker:
     docker:
-      - image: golang:1.23.0
+      - image: benjamincaldwell/ci-scripts
     working_directory: /go/src/github.com/bcaldwell/selfops
 
     steps:
       - checkout
       - setup_remote_docker
 
-      - run:
-          name: Install ci-scripts
-          command: wget -q -O - https://raw.githubusercontent.com/bcaldwell/ci-scripts/master/scripts/install.sh | sh
       - run:
           name: Build and pushing docker image
           command: ci-scripts docker/build_and_push_image --docker-images-dockerRepo benjamincaldwell/selfops --
