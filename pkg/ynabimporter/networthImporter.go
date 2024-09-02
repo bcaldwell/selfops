@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bcaldwell/selfops/internal/config"
+	"github.com/bcaldwell/selfops/pkg/config"
 	"github.com/uptrace/bun"
 	"k8s.io/klog"
 )

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/postgresutils"
+	"github.com/bcaldwell/selfops/pkg/config"
+	"github.com/bcaldwell/selfops/pkg/postgresutils"
 	"github.com/uptrace/bun"
 )
 

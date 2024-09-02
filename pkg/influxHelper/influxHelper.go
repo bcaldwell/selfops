@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bcaldwell/selfops/internal/config"
+	"github.com/bcaldwell/selfops/pkg/config"
 	influxdb "github.com/influxdata/influxdb/client/v2"
 )
 

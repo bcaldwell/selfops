@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	airtableImporter "github.com/bcaldwell/selfops/internal/airtableimporter"
-	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/ynabimporter"
+	airtableImporter "github.com/bcaldwell/selfops/pkg/airtableimporter"
+	"github.com/bcaldwell/selfops/pkg/config"
+	"github.com/bcaldwell/selfops/pkg/ynabimporter"
 	"github.com/robfig/cron"
 )
 

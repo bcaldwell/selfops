@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/bcaldwell/selfops/internal/config"
+	"github.com/bcaldwell/selfops/pkg/config"
 	"github.com/bcaldwell/selfops/pkg/financialimporter"
 	"k8s.io/klog"
 )

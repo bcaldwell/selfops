@@ -11,7 +11,7 @@ import (
 	"github.com/uptrace/bun/driver/pgdriver"
 	"k8s.io/klog"
 
-	"github.com/bcaldwell/selfops/internal/config"
+	"github.com/bcaldwell/selfops/pkg/config"
 )
 
 func CreatePostgresClient(dbname string) (*bun.DB, error) {
@@ -71,7 +71,7 @@ func ensureDBExistsInPostgres(table string) error {
 }
 
 func TableSetString(db *bun.DB, model interface{}, exclude ...string) string {
-	t := db.Dialect().Tables().Ref(reflect.TypeOf(model).Elem())
+	t := db.Dialect().Tables().Get(reflect.TypeOf(model).Elem())
 	if t == nil {
 		return ""
 	}

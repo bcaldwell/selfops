@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/postgresutils"
+	"github.com/bcaldwell/selfops/pkg/config"
+	"github.com/bcaldwell/selfops/pkg/postgresutils"
 	"github.com/bcaldwell/selfops/pkg/financialimporter"
 	"github.com/davidsteinsland/ynab-go/ynab"
 	"github.com/uptrace/bun"
@@ -99,7 +99,7 @@ func (importer *ImportYNABRunner) importYNAB() error {
 			return err
 		}
 
-		err = importer.importAccounts(b, config.CurrentYnabConfig().Currencies)
+		_, err = importer.importAccounts(b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}

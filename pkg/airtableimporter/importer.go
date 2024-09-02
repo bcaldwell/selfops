@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bcaldwell/selfops/internal/config"
-	"github.com/bcaldwell/selfops/internal/influxHelper"
+	"github.com/bcaldwell/selfops/pkg/config"
+	"github.com/bcaldwell/selfops/pkg/influxHelper"
 	"github.com/crufter/airtable-go"
 
 	influx "github.com/influxdata/influxdb/client/v2"

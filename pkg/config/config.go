@@ -6,10 +6,10 @@ import (
 	"io/ioutil"
 	"os"
 
+	"dario.cat/mergo"
 	"github.com/Shopify/ejson"
 	"github.com/caarlos0/env/v6"
 	"github.com/ghodss/yaml"
-	"github.com/imdario/mergo"
 )
 
 var config Config
