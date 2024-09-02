@@ -2,6 +2,7 @@ package airtableImporter
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -91,7 +92,7 @@ func ImportAirtable() error {
 					if stringInSlice(key, base.Fields.ConvertToTimeFromMidnightList) {
 						valueDate, err := parseAsDateTime(field)
 						if err != nil {
-							fmt.Printf("Error parsing date: %s\n", field)
+							slog.Error("Error parsing date", "field", field, "error", err)
 							continue
 						}
 						offset := 0.0

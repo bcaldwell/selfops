@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/bcaldwell/selfops/pkg/config"
-	"github.com/bcaldwell/selfops/pkg/postgresutils"
 	"github.com/bcaldwell/selfops/pkg/financialimporter"
+	"github.com/bcaldwell/selfops/pkg/postgresutils"
 	"github.com/davidsteinsland/ynab-go/ynab"
 	"github.com/uptrace/bun"
 )
@@ -93,16 +93,19 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		return err
 	}
 
+	sqlAccounts := []SQLAccount{}
+
 	for _, b := range config.CurrentYnabConfig().Budgets {
 		err = importer.importTransactions(b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}
 
-		_, err = importer.importAccounts(b, config.CurrentYnabConfig().Currencies)
+		currentSqlAccounts, err := importer.importAccounts(b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
 			return err
 		}
+		sqlAccounts = append(sqlAccounts, currentSqlAccounts...)
 
 		err = importer.importBudgets(b, config.CurrentYnabConfig().Currencies)
 		if err != nil {
@@ -110,7 +113,7 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		}
 	}
 
-	err = importer.importNetworth(config.CurrentYnabConfig().Budgets, config.CurrentYnabConfig().Currencies)
+	err = importer.importNetworth(sqlAccounts)
 	if err != nil {
 		return err
 	}
