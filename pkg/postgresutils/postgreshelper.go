@@ -19,19 +19,13 @@ func CreatePostgresClient(dbname string) (*bun.DB, error) {
 
 	// bypass creating of db if database_url is set because we are likely running in heroku then
 	if config.CurrentSecrets().DatabaseURL == "" {
-		err := ensureDBExistsInPostgres(config.CurrentYnabConfig().SQL.YnabDatabase)
+		err := ensureDBExistsInPostgres()
 		if err != nil {
 			return nil, err
 		}
 
-		sqlHost := config.CurrentSecrets().SQL.SqlHost
-		// slightly silly logic to add port if missing
-		if !strings.Contains(sqlHost, ":") {
-			sqlHost += ":5432"
-		}
-
 		pgconn = pgdriver.NewConnector(
-			pgdriver.WithAddr(sqlHost),
+			pgdriver.WithAddr(sqlHost()),
 			pgdriver.WithInsecure(true),
 			pgdriver.WithUser(config.CurrentSqlSecrets().SqlUsername),
 			pgdriver.WithPassword(config.CurrentSqlSecrets().SqlPassword),
@@ -48,9 +42,18 @@ func CreatePostgresClient(dbname string) (*bun.DB, error) {
 	return bun.NewDB(db, pgdialect.New()), err
 }
 
-func ensureDBExistsInPostgres(table string) error {
+func sqlHost() string {
+	sqlHost := config.CurrentSecrets().SQL.SqlHost
+	// slightly silly logic to add port if missing
+	if !strings.Contains(sqlHost, ":") {
+		sqlHost += ":5432"
+	}
+	return sqlHost
+}
+
+func ensureDBExistsInPostgres() error {
 	pgconn := pgdriver.NewConnector(
-		pgdriver.WithAddr(config.CurrentSqlSecrets().SqlHost),
+		pgdriver.WithAddr(sqlHost()),
 		pgdriver.WithInsecure(true),
 		pgdriver.WithUser(config.CurrentSqlSecrets().SqlUsername),
 		pgdriver.WithPassword(config.CurrentSqlSecrets().SqlPassword),
