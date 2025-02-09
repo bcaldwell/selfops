@@ -90,8 +90,15 @@ func main() {
 
 func run() {
 	fmt.Println(time.Now().Format(time.RFC850))
-	err := runner.Run()
-	if err != nil {
-		fmt.Println(err)
+
+	retryCount := 5
+	for i := range 5 {
+		err := runner.Run()
+		if err == nil {
+			fmt.Println("finished successfully, sleeping")
+			break
+		}
+
+		fmt.Printf(fmt.Sprintf("Error: %v, Retrying Count: %d, Max Retries: %d", err, i, retryCount))
 	}
 }
