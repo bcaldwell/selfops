@@ -208,7 +208,7 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 		}
 
 		sqlAccounts = append(sqlAccounts, account.sql...)
-		klog.Infof("Wrote %d accounts to sql from budget %s account %s\n", len(accounts), budget.Name, account.name)
+		klog.Infof("Wrote %d accounts to sql from budget %s account %s\n", len(account.sql), budget.Name, account.name)
 	}
 
 	return sqlAccounts, nil
