@@ -27,14 +27,12 @@ require (
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/sys v0.23.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	mellium.im/sasl v0.3.1 // indirect
 )
 
-go 1.22
-
-toolchain go1.22.5
+go 1.23.0
