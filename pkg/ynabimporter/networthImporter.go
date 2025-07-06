@@ -43,8 +43,7 @@ func addAccountToRow(row *SQLNetWorth, account SQLAccount) {
 	row.BudgetBreakdown[account.BudgetName]["cad"] += account.CAD
 }
 
-func (importer *ImportYNABRunner) importNetworth(accounts []SQLAccount) error {
-	slog.Info("starting net worth import")
+func (importer *ImportYNABRunner) migrateNetWorth() error {
 	tableName := config.CurrentYnabConfig().SQL.NetworthTable
 	model := (*SQLNetWorth)(nil)
 	// todo make this come from config
@@ -54,9 +53,12 @@ func (importer *ImportYNABRunner) importNetworth(accounts []SQLAccount) error {
 		return fmt.Errorf("failed to drop %s table: %w", tableName, err)
 	}
 	_, err = importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
-	if err != nil {
-		return err
-	}
+	return err
+}
+
+func (importer *ImportYNABRunner) importNetworth(accounts []SQLAccount) error {
+	slog.Info("starting net worth import")
+	tableName := config.CurrentYnabConfig().SQL.NetworthTable
 
 	slices.SortFunc(accounts, func(a, b SQLAccount) int {
 		return a.Date.Compare(b.Date)
@@ -87,7 +89,7 @@ func (importer *ImportYNABRunner) importNetworth(accounts []SQLAccount) error {
 	}
 
 	slog.Info("About to write net worth to sql", "rows", len(rows))
-	_, err = importer.db.NewInsert().
+	_, err := importer.db.NewInsert().
 		Model(&rows).
 		ModelTableExpr(tableName).
 		On("CONFLICT (date) DO UPDATE").

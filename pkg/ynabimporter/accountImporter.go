@@ -131,20 +131,23 @@ func addToBalance(s *SQLAccount, balance float64, conversion map[string]float64)
 	s.CAD = Round(s.Balance*conversion["CAD"], 0.01)
 }
 
-func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencies []string) ([]SQLAccount, error) {
-	model := (*SQLAccount)(nil)
+func (importer *ImportYNABRunner) migrateAccounts() error {
 	tableName := config.CurrentYnabConfig().SQL.AccountsTable
+	model := (*SQLAccount)(nil)
 	// todo make this come from config
 	// easiest way to handle deleted transactions, with the speed at which it works not too bad
 	_, err := importer.db.NewDropTable().Model(model).ModelTableExpr(tableName).Exec(context.Background())
 	if err != nil && !strings.Contains(err.Error(), fmt.Sprintf("ERROR: table \"%s\" does not exist (SQLSTATE=42P01)", tableName)) {
-		return nil, fmt.Errorf("failed to drop %s table: %w", tableName, err)
+		return fmt.Errorf("failed to drop %s table: %w", tableName, err)
 	}
 
-	_, err = importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
-	if err != nil {
-		return nil, err
-	}
+	_, err = importer.db.NewCreateTable().Model((*SQLAccount)(nil)).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
+	return err
+}
+
+func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencies []string) ([]SQLAccount, error) {
+	model := (*SQLAccount)(nil)
+	tableName := config.CurrentYnabConfig().SQL.AccountsTable
 
 	currencyNetworths := make(map[string]float64)
 	for _, currency := range currencies {
@@ -196,7 +199,7 @@ func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencie
 
 	sqlAccounts := []SQLAccount{}
 	for _, account := range accountsMap {
-		_, err = importer.db.NewInsert().
+		_, err := importer.db.NewInsert().
 			Model(&account.sql).
 			ModelTableExpr(tableName).
 			On("CONFLICT (key) DO UPDATE").

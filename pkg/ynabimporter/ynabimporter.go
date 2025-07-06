@@ -87,8 +87,13 @@ func (importer *ImportYNABRunner) importYNAB() error {
 		return err
 	}
 
-	i := financialimporter.NewTransactionImporter(importer.db, importer.currencyConverter, nil, nil, "", nil, time.Now(), config.CurrentYnabConfig().SQL.TransactionsTable)
-	err = i.Migrate()
+	err = importer.Migrate()
+	if err != nil {
+		return err
+	}
+
+	fimporter := financialimporter.NewTransactionImporter(importer.db, importer.currencyConverter, nil, nil, "", nil, time.Now(), config.CurrentYnabConfig().SQL.TransactionsTable)
+	err = fimporter.Migrate()
 	if err != nil {
 		return err
 	}
@@ -180,4 +185,23 @@ func (importer *ImportYNABRunner) deleteRowsByDate(table string, date string, fi
 
 	_, err := importer.db.Exec(queryString, parmas...)
 	return err
+}
+
+func (importer *ImportYNABRunner) Migrate() error {
+	err := importer.migrateBudgets()
+	if err != nil {
+		return err
+	}
+
+	err = importer.migrateAccounts()
+	if err != nil {
+		return err
+	}
+
+	err = importer.migrateNetWorth()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

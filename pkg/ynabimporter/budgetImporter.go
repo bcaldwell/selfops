@@ -2,6 +2,7 @@ package ynabimporter
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -33,14 +34,16 @@ type SQLBudget struct {
 	Fields        map[string]interface{} `bun:"type:jsonb"`
 }
 
+func (importer *ImportYNABRunner) migrateBudgets() error {
+	tableName := config.CurrentYnabConfig().SQL.BudgetsTable
+	_, err := importer.db.NewCreateTable().Model((*SQLBudget)(nil)).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
+	return err
+}
+
 func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies []string) error {
 	// todo make this come from config
 	model := (*SQLBudget)(nil)
 	tableName := config.CurrentYnabConfig().SQL.BudgetsTable
-	_, err := importer.db.NewCreateTable().Model((*SQLBudget)(nil)).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
-	if err != nil {
-		return err
-	}
 
 	sqlRecords := make([]SQLBudget, 0)
 
@@ -109,17 +112,21 @@ func (importer *ImportYNABRunner) importBudgets(budget config.Budget, currencies
 		endIndex := min(len(sqlRecords), i+batchSize)
 
 		records := sqlRecords[i:endIndex]
-		_, err = importer.db.NewInsert().
+		_, err := importer.db.NewInsert().
 			Model(&records).
 			ModelTableExpr(tableName).
 			On("CONFLICT (key) DO UPDATE").
 			Set(postgresutils.TableSetString(importer.db, model, "id", "key")).
 			Exec(context.Background())
+
+		if err != nil {
+			return fmt.Errorf("error writing budgets: %s", err.Error())
+		}
 	}
 
 	klog.Infof("Wrote %v budgets for %s to sql\n", len(sqlRecords), budget.Name)
 
-	return err
+	return nil
 }
 
 func min(a, b int) int {
