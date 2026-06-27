@@ -142,7 +142,10 @@ func (importer *ImportYNABRunner) migrateAccounts() error {
 	}
 
 	_, err = importer.db.NewCreateTable().Model((*SQLAccount)(nil)).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
-	return err
+	if err != nil {
+		return err
+	}
+	return postgresutils.SetUnlogged(importer.db, tableName)
 }
 
 func (importer *ImportYNABRunner) importAccounts(budget config.Budget, currencies []string) ([]SQLAccount, error) {

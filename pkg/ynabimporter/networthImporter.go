@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bcaldwell/selfops/pkg/config"
+	"github.com/bcaldwell/selfops/pkg/postgresutils"
 	"github.com/uptrace/bun"
 )
 
@@ -53,7 +54,10 @@ func (importer *ImportYNABRunner) migrateNetWorth() error {
 		return fmt.Errorf("failed to drop %s table: %w", tableName, err)
 	}
 	_, err = importer.db.NewCreateTable().Model(model).ModelTableExpr(tableName).IfNotExists().Exec(context.Background())
-	return err
+	if err != nil {
+		return err
+	}
+	return postgresutils.SetUnlogged(importer.db, tableName)
 }
 
 func (importer *ImportYNABRunner) importNetworth(accounts []SQLAccount) error {

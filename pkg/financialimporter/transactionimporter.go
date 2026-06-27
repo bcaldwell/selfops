@@ -100,6 +100,10 @@ func (importer *TransactionImporter) Migrate() error {
 		return fmt.Errorf("failed to create %s table: %w", tableName, err)
 	}
 
+	if err := postgresutils.SetUnlogged(importer.db, tableName); err != nil {
+		return fmt.Errorf("failed to set %s unlogged: %w", tableName, err)
+	}
+
 	return nil
 }
 

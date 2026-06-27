@@ -79,6 +79,11 @@ func ensureDBExistsInPostgres() error {
 	return nil
 }
 
+func SetUnlogged(db *bun.DB, tableName string) error {
+	_, err := db.Exec("ALTER TABLE ? SET UNLOGGED", bun.Ident(tableName))
+	return err
+}
+
 func TableSetString(db *bun.DB, model interface{}, exclude ...string) string {
 	t := db.Dialect().Tables().Get(reflect.TypeOf(model).Elem())
 	if t == nil {
