@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 jobs:
   release-docker:
     docker:
@@ -27,7 +27,6 @@ jobs:
             curl -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/${K8S_CONFIG_REPO}/actions/workflows/update-image.yaml/dispatches" -d '{"ref": "main", "inputs": {"repository": "benjamincaldwell/selfops", "tag": "'"${CIRCLE_SHA1}"'"}}'
 
 workflows:
-  version: 2
   build:
     jobs:
       - release-docker:
